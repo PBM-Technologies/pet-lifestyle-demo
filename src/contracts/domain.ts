@@ -23,6 +23,12 @@ export interface Household extends AuditFields {
   name: string;
   /** First names of people in the household, used for "fed by". Names only, no accounts yet. */
   members?: string[];
+  /** Optional phone per member name, for the sitter care sheet emergency contact. */
+  memberPhones?: Record<string, string>;
+  /** Member name to list as the emergency contact on sitter care sheets. */
+  emergencyContact?: string;
+  /** Door codes, where things are, house rules. Shown on sitter care sheets. */
+  houseNotes?: string;
 }
 
 /** Full pet record used by the app. Extends the original PetProfile contract. */
@@ -38,6 +44,8 @@ export interface Pet extends PetProfile {
   vetPhone?: string;
   /** Daily calories from the vet. Only ever entered by the user. */
   dailyCalorieTarget?: number;
+  /** Habits, fears and quirks a sitter should know. */
+  quirks?: string;
   isSample?: boolean;
 }
 
@@ -295,6 +303,45 @@ export interface AppNotification {
   severity: 'info' | 'warning' | 'danger';
 }
 
+export type SitterService = 'boarding' | 'house_sitting' | 'drop_in' | 'dog_walking' | 'day_care';
+
+/** A request for pet care on some dates. Booking happens on the provider's own site. */
+export interface SitterRequest extends AuditFields {
+  householdId: ID;
+  petIds: ID[];
+  services: SitterService[];
+  /** YYYY-MM-DD */
+  startsOn: string;
+  endsOn: string;
+  /** Zip code or city to search near. */
+  location?: string;
+  notes?: string;
+  /** Trip the dates came from, when started from Travel. */
+  tripId?: ID;
+  status: 'open' | 'booked' | 'cancelled';
+  /** Who was booked, typed by the user. */
+  bookedName?: string;
+  bookedSitterId?: ID;
+  isSample?: boolean;
+}
+
+/** "friend_family" or a provider id from BRAND.sitterProviders. */
+export type SitterSource = string;
+
+/** A saved sitter contact. */
+export interface Sitter extends AuditFields {
+  householdId: ID;
+  name: string;
+  phone?: string;
+  email?: string;
+  foundVia: SitterSource;
+  notes?: string;
+  rating?: 1 | 2 | 3 | 4 | 5;
+  /** Pets this sitter already knows. */
+  petIds: ID[];
+  isSample?: boolean;
+}
+
 /** Shape of the JSON export/import file. */
 export interface ExportBundle {
   app: string;
@@ -316,6 +363,8 @@ export interface ExportBundle {
   treatLogs?: TreatLog[];
   switchPlans?: FoodSwitchPlan[];
   expenses?: Expense[];
+  sitterRequests?: SitterRequest[];
+  sitters?: Sitter[];
   dismissedNotifications: ID[];
 }
 

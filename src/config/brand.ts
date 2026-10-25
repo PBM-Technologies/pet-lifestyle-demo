@@ -38,6 +38,7 @@ export interface ColorSet {
 }
 
 import { FULL_LOGO_WEBP, MARK_PNG_B64, MARK_WEBP } from './brandAssets';
+import type { SitterProvider } from '../lib/sitters';
 
 /** App icon: the dog and cat mark on cream, wrapped in SVG so icon.svg keeps working. */
 const LOGO_SVG =
@@ -115,6 +116,36 @@ export const BRAND = {
       category: 'toys',
     },
   ] as PartnerBrand[],
+  /**
+   * Pet sitter services linked from Find a sitter. Home pages only: none of
+   * them has a public booking API, so the app links out and the user books on
+   * their site. Services and species are a rough guide for which buttons to
+   * show; check each site for what is offered nearby. See src/lib/sitters.ts
+   * for where a real search or booking integration would plug in.
+   */
+  sitterProviders: [
+    {
+      id: 'rover',
+      name: 'Rover',
+      services: ['boarding', 'house_sitting', 'drop_in', 'dog_walking', 'day_care'],
+      species: ['dog', 'cat'],
+      url: 'https://www.rover.com',
+    },
+    {
+      id: 'wag',
+      name: 'Wag!',
+      services: ['dog_walking', 'drop_in', 'house_sitting', 'boarding'],
+      species: ['dog'],
+      url: 'https://wagwalking.com',
+    },
+    {
+      id: 'care-com',
+      name: 'Care.com pet care',
+      services: ['house_sitting', 'drop_in', 'dog_walking', 'boarding'],
+      species: ['dog', 'cat', 'other'],
+      url: 'https://www.care.com/pet-care',
+    },
+  ] as SitterProvider[],
 } as const;
 
 /** Builds the CSS custom properties for both themes from BRAND.colors. */

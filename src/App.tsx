@@ -24,6 +24,7 @@ import { SpendingPage } from './pages/Spending';
 import { IdentifyPage } from './pages/Identify';
 import { HealthCheckPage } from './pages/HealthCheck';
 import { BreedDetailPage, BreedMatchPage, BreedsPage } from './pages/Breeds';
+import { CareSheetPage, SitterRequestPage, SittersPage } from './pages/Sitters';
 
 type Render = (p: Record<string, string>, q: URLSearchParams) => ReactNode;
 
@@ -49,6 +50,9 @@ export const ROUTES: Array<{ pattern: string; title: string; tab: Tab; render: R
   { pattern: '/breeds/match', title: 'Find your match', tab: 'more', render: () => <BreedMatchPage /> },
   { pattern: '/breeds/:slug', title: 'Breed', tab: 'more', render: (p) => <BreedDetailPage slug={p.slug} /> },
   { pattern: '/spending', title: 'Spending', tab: 'more', render: () => <SpendingPage /> },
+  { pattern: '/sitters', title: 'Find a sitter', tab: 'more', render: () => <SittersPage /> },
+  { pattern: '/sitters/new', title: 'Sitter request', tab: 'more', render: (_p, q) => <SitterRequestPage query={q} /> },
+  { pattern: '/sitters/care-sheet', title: 'Sitter care sheet', tab: 'more', render: (_p, q) => <CareSheetPage query={q} /> },
   { pattern: '/more', title: 'More', tab: 'more', render: () => <MorePage /> },
   { pattern: '/notifications', title: 'Notifications', tab: 'home', render: () => <NotificationsPage /> },
 ];

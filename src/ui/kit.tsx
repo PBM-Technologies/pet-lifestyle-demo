@@ -410,6 +410,47 @@ export function downloadFile(name: string, content: string, type: string): void 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Copies text, falling back to a hidden textarea when the async clipboard is blocked (embedded previews). */
+export async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(text); return true; }
+  } catch { /* fall back below */ }
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Shares through the system sheet when available, otherwise copies. Returns what happened. */
+export async function shareOrCopy(title: string, text: string): Promise<'shared' | 'copied' | 'cancelled' | 'failed'> {
+  const nav = navigator as Navigator & { share?: (d: { title?: string; text?: string }) => Promise<void> };
+  if (typeof nav.share === 'function') {
+    try { await nav.share({ title, text }); return 'shared'; } catch (e) { if (e instanceof Error && e.name === 'AbortError') return 'cancelled'; }
+  }
+  return (await copyText(text)) ? 'copied' : 'failed';
+}
+
+/** Selectable value (phone, email) with a 44px copy button next to it. */
+export function CopyValue({ label, value, icon, onCopied }: { label: string; value: string; icon: string; onCopied: (ok: boolean) => void }) {
+  return (
+    <div className="copy-value">
+      <Icon name={icon} size={18} />
+      <span className="grow copy-text" aria-label={`${label}: ${value}`}>{value}</span>
+      <IconButton icon="copy" label={`Copy ${label.toLowerCase()}`} onClick={async () => onCopied(await copyText(value))} />
+    </div>
+  );
+}
+
 /** Tap-friendly number stepper with 44px minus and plus buttons. */
 export function Stepper({ label, value, min, max, onChange, format }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void; format?: (v: number) => string }) {
   const id = useId();

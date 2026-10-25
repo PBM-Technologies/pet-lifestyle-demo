@@ -11,6 +11,7 @@ const ITEMS = [
   { to: '/identify', icon: 'search', label: 'Identify breed', hint: 'Best guess from a photo' },
   { to: '/health-check', icon: 'camera', label: 'Photo health check', hint: 'Skin, ears, eyes, teeth and more' },
   { to: '/breeds', icon: 'paw', label: 'Breed guide', hint: 'Dog and cat breeds, plus find your match' },
+  { to: '/sitters', icon: 'sitter', label: 'Find a sitter', hint: 'Requests, saved sitters and a care sheet' },
   { to: '/spending', icon: 'bag', label: 'Spending', hint: 'Monthly totals, by category and pet' },
   { to: '/care', icon: 'syringe', label: 'Care schedule', hint: 'Everything due across pets' },
   { to: '/notifications', icon: 'bell', label: 'Notifications', hint: 'Reminders and upcoming plans' },

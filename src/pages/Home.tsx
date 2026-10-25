@@ -9,6 +9,7 @@ import { buildNotifications } from '../lib/notifications';
 import { FOOD_STATUS_LABEL, foodAlerts, runOutSentence, shortDay } from '../lib/food';
 import { mainFood } from '../lib/feeding';
 import { FeedingChecks, FeederPicker } from './FoodExtras';
+import { SERVICE_LABEL, sitterNeededLine } from '../lib/sitters';
 
 export function HomePage() {
   const { data, db, toast } = useApp();
@@ -21,6 +22,7 @@ export function HomePage() {
   const petById = new Map(data.pets.map((p) => [p.id, p]));
   const lowFood = foodAlerts(data.food).filter((a) => petById.has(a.item.petId)).slice(0, 4);
   const feedPets = data.pets.map((p) => ({ pet: p, food: mainFood(data.food, p.id, data.switchPlans) })).filter((x): x is { pet: typeof x.pet; food: NonNullable<typeof x.food> } => !!x.food);
+  const sitterNeeds = data.sitterRequests.filter((r) => r.status === 'open' && r.endsOn >= t).sort((a, b) => a.startsOn.localeCompare(b.startsOn));
   const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events, food: data.food }).filter((n) => !data.dismissed.has(n.id)).length;
 
   return (
@@ -44,6 +46,7 @@ export function HomePage() {
           <Link to="/boxes/build" className="quick-btn"><Icon name="gift" /><span>Build box</span></Link>
           <Link to="/identify" className="quick-btn"><Icon name="search" /><span>Identify breed</span></Link>
           <Link to="/health-check" className="quick-btn"><Icon name="camera" /><span>Health check</span></Link>
+          <Link to="/sitters" className="quick-btn"><Icon name="sitter" /><span>Find a sitter</span></Link>
         </div>
       </section>
 
@@ -119,6 +122,29 @@ export function HomePage() {
               ))}
             </ul>
           )}
+        </Card>
+      )}
+
+      {sitterNeeds.length > 0 && (
+        <Card className="sitter-home">
+          <div className="section-head">
+            <div className="mini-head"><Icon name="sitter" /><h2>Sitters</h2></div>
+            <Link to="/sitters" className="text-link">Manage</Link>
+          </div>
+          <ul className="list">
+            {sitterNeeds.map((r) => (
+              <li key={r.id}>
+                <Link to="/sitters" className="list-row">
+                  <span className="avatar-stack">{data.pets.filter((p) => r.petIds.includes(p.id)).slice(0, 3).map((p) => <PetAvatar key={p.id} pet={p} size={36} />)}</span>
+                  <span className="grow">
+                    <strong>{sitterNeededLine(r)}</strong>
+                    <span className="muted small block">{data.pets.filter((p) => r.petIds.includes(p.id)).map((p) => p.name).join(', ')} · {r.services.map((s) => SERVICE_LABEL[s]).join(', ')}</span>
+                  </span>
+                  <Badge tone="warning">Not booked</Badge>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 

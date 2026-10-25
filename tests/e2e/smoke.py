@@ -203,6 +203,9 @@ def demo_page(ctx):
     page.on('console', log_console)
     page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
     page.goto(DEMO)
+    expect(page.locator('.home-logo').get_by_test_id('brand-tagline')).to_have_text('Patching it all together for pet parents.')
+    expect(page.locator('.sitter-home').get_by_text(re.compile(r'^Sitter needed \w{3} \d+ to'))).to_be_visible()
+    demo_shot(page, 'y-home-logo-tagline')
     feed = page.locator('.feed-card')
     expect(feed.get_by_text('Bailey was fed at 7:40 AM by Sarah')).to_be_visible()
     expect(feed.get_by_role('group', name='Who is feeding').get_by_role('button', name='Alex')).to_be_visible()
@@ -227,6 +230,14 @@ def demo_page(ctx):
     page.evaluate("window.scrollBy(0, 560)")
     page.wait_for_timeout(150)
     page.screenshot(path=f'{DEMO_SHOTS}/x-food-treats.png')
+    # sitters and care sheet
+    page.goto(DEMO + '#/sitters')
+    expect(page.get_by_text('Jordan (sample)')).to_be_visible()
+    expect(page.get_by_text('Found via Rover · knows Luna')).to_be_visible()
+    demo_shot(page, 'y-sitters')
+    page.get_by_role('link', name='Care sheet').first.click()
+    expect(page.get_by_test_id('care-sheet').get_by_role('heading', name='Care sheet for Luna')).to_be_visible()
+    demo_shot(page, 'y-care-sheet', page.get_by_test_id('care-sheet'))
     # spending
     page.goto(DEMO + '#/spending')
     expect(page.get_by_test_id('month-total')).to_be_visible()
@@ -511,6 +522,74 @@ with sync_playwright() as p:
     shot(page, 'trip', False)
     shot(page, 'trip-full', True)
 
+    # SET C: find a sitter from the trip, dates prefilled, provider links, booked, saved sitter, care sheet
+    page.get_by_role('link', name='Need a sitter for these dates?').click()
+    page.wait_for_url(re.compile(r'#/sitters/new\?trip=trip-'))
+    expect(page.get_by_label('Start date')).to_have_value('2026-10-30')
+    expect(page.get_by_label('End date')).to_have_value('2026-11-01')
+    expect(page.get_by_text('Dates from your trip')).to_be_visible()
+    page.get_by_role('button', name='Save request').click()
+    expect(page.get_by_text('Pick the kind of care you need.')).to_be_visible()
+    page.get_by_role('group', name='Kind of care').get_by_role('button', name=re.compile('Drop-in visits')).click()
+    expect(page.get_by_role('group', name='Kind of care').get_by_role('button', name=re.compile('Drop-in visits'))).to_have_attribute('aria-pressed', 'true')
+    page.get_by_label('Zip code or city').fill('12345')
+    links = page.locator('.search-on a')
+    hrefs = links.evaluate_all("els => els.map(e => [e.textContent.trim(), e.getAttribute('href'), e.target, e.rel])")
+    # dogs and cats are both in the request, so only providers that take both show up
+    assert [h[1] for h in hrefs] == ['https://www.rover.com', 'https://www.care.com/pet-care'], hrefs
+    assert all(h[2] == '_blank' and 'noopener' in h[3] for h in hrefs), hrefs
+    assert hrefs[0][0] == 'Search on Rover', hrefs
+    expect(page.get_by_text('You will finish booking on their site.')).to_be_visible()
+    page.get_by_role('button', name='Save request').click()
+    page.wait_for_url(re.compile(r'#/sitters$'))
+    expect(page.get_by_text('Sitter needed Oct 30 to Nov 1')).to_be_visible()
+    page.goto(URL + '#/')
+    expect(page.locator('.sitter-home').get_by_text('Sitter needed Oct 30 to Nov 1')).to_be_visible()
+    page.goto(trip_url)
+    expect(page.get_by_role('link', name='See your sitter request')).to_be_visible()
+    page.goto(URL + '#/more')
+    page.get_by_role('link', name=re.compile('Find a sitter')).click()
+    page.get_by_role('button', name='Mark booked').click()
+    dlg = page.get_by_role('dialog')
+    dlg.get_by_label('Sitter name').fill('Casey')
+    dlg.get_by_role('radio', name='Friend or family').click()
+    dlg.get_by_role('button', name='Mark booked').click()
+    expect(page.locator('.badge', has_text='Booked with Casey')).to_be_visible()
+    page.goto(URL + '#/')
+    expect(page.get_by_text('Sitter needed Oct 30 to Nov 1')).to_have_count(0)
+    page.goto(URL + '#/sitters')
+    page.get_by_role('button', name='Add sitter').click()
+    dlg = page.get_by_role('dialog')
+    dlg.get_by_label('Name').fill('Riley')
+    dlg.get_by_label('Phone').fill('555-0101')
+    dlg.get_by_label('Email').fill('riley@example.com')
+    dlg.get_by_role('radio', name='Rover').click()
+    dlg.get_by_role('radio', name='4 stars').click()
+    dlg.get_by_role('button', name='Luna').click()
+    dlg.get_by_role('button', name='Save sitter').click()
+    riley = page.locator('.sitter', has_text='Riley')
+    expect(riley.get_by_text('Found via Rover · knows Luna')).to_be_visible()
+    expect(riley.get_by_role('img', name='4 out of 5 stars')).to_be_visible()
+    page.evaluate("""() => { window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied.push(t); } } }); }""")
+    expect(riley.get_by_role('button', name='Copy phone')).to_be_visible()
+    riley.get_by_role('button', name='Copy phone').click()
+    riley.get_by_role('button', name='Copy email').click()
+    assert page.evaluate('window.__copied') == ['555-0101', 'riley@example.com'], page.evaluate('window.__copied')
+    expect(page.get_by_text('Email copied')).to_be_visible()
+    # care sheet from the booked request, then copy all
+    page.locator('.sitter-request', has_text='Booked with Casey').get_by_role('link', name='Care sheet').click()
+    page.wait_for_url(re.compile(r'#/sitters/care-sheet\?request='))
+    sheet = page.get_by_test_id('care-sheet')
+    expect(sheet.get_by_role('heading', name=re.compile('Care sheet for'))).to_be_visible()
+    expect(sheet.get_by_text('Oct 30 to Nov 1')).to_be_visible()
+    page.evaluate("""() => { window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied.push(t); } } }); }""")
+    page.get_by_role('button', name='Copy all as text').click()
+    expect(page.get_by_text('Care sheet copied')).to_be_visible()
+    copied = page.evaluate('window.__copied')[-1]
+    for want in ['BAILEY (Dog, Golden Retriever)', 'Dry dog food (sample), 2 cups twice a day', 'Vet:\n- Sample Vet Clinic', 'Allergies:\n- Chicken', 'Emergency contact:']:
+        assert want in copied, (want, copied)
+    shot(page, 'care-sheet', True)
+
     # events
     page.goto(URL + '#/events')
     page.get_by_role('button', name='New event').click()
@@ -596,7 +675,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('heading', name='At a glance')).to_be_visible()
 
     # other routes
-    for r in ['#/care', '#/shop', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/nope', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
+    for r in ['#/sitters', '#/sitters/new', '#/sitters/care-sheet', '#/care', '#/shop', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/nope', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
         page.goto(URL + r)
         page.wait_for_timeout(150)
         page.screenshot(path=f'{SHOTS}/route-{r.strip("#/").replace("/", "_") or "home"}.png')
@@ -618,6 +697,7 @@ with sync_playwright() as p:
         page.get_by_role('button', name='Export care records (CSV)').click()
     d.value.save_as(os.path.join(DL, 'care.csv'))
     assert len(data['petFood']) == 7, len(data['petFood'])
+    assert len(data['sitterRequests']) == 1 and data['sitterRequests'][0]['status'] == 'booked' and len(data['sitters']) == 2, (data['sitterRequests'], data['sitters'])
     assert len(data['feedingLogs']) >= 2 and len(data['switchPlans']) == 1 and any(e.get('note') == 'Ear check' for e in data['expenses'])
     with page.expect_download() as d:
         page.get_by_role('button', name='Export food and treats (CSV)').click()
@@ -655,7 +735,7 @@ with sync_playwright() as p:
 
     # 360 width check: no horizontal scroll
     page.set_viewport_size({'width': 360, 'height': 780})
-    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/golden-retriever']:
+    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/golden-retriever', '#/sitters', '#/sitters/new?trip=' + trip_url.split('/travel/')[1], '#/sitters/care-sheet']:
         page.goto(URL + r); page.wait_for_timeout(120)
         sw = page.evaluate('document.documentElement.scrollWidth')
         if sw > 360: errors.append(f'horizontal overflow {sw}px on {r}')

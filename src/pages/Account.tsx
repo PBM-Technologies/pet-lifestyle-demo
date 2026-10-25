@@ -2,7 +2,8 @@ import { useRef, useState } from 'react';
 import { BRAND } from '../config/brand';
 import { useApp } from '../state';
 import { Link, navigate } from '../router';
-import { Button, Card, Confirm, PageHeader, PetAvatar, TextField, downloadFile } from '../ui/kit';
+import { Button, Card, Confirm, PageHeader, PetAvatar, Sheet, TextField, downloadFile } from '../ui/kit';
+import { cleanPhone } from '../lib/sitters';
 import { careEventsCsv, deleteAll, petFoodCsv, ensureSeeded, exportAll, importAll, ImportError, loadSamplePets, removeSamplePets } from '../data/db';
 import { nowIso, today } from '../lib/dates';
 import { cleanMembers } from '../lib/feeding';
@@ -17,6 +18,18 @@ export function AccountPage() {
     if (!data.household) return;
     await db.households.upsert({ ...data.household, members: cleanMembers(next), updatedAt: nowIso() });
     toast(msg);
+  };
+  const phones = data.household?.memberPhones ?? {};
+  const [phoneFor, setPhoneFor] = useState<string | null>(null);
+  const [phone, setPhone] = useState('');
+  const savePhone = async () => {
+    if (!data.household || !phoneFor) return;
+    const next = { ...phones };
+    const v = cleanPhone(phone);
+    if (v) next[phoneFor] = v; else delete next[phoneFor];
+    await db.households.upsert({ ...data.household, memberPhones: next, updatedAt: nowIso() });
+    toast(v ? `Phone saved for ${phoneFor}` : `Phone removed for ${phoneFor}`);
+    setPhoneFor(null);
   };
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmImport, setConfirmImport] = useState<unknown>(null);
@@ -35,13 +48,14 @@ export function AccountPage() {
         </form>
         <p className="muted small">Profile stored on this device only.{db.store.volatile ? ' Storage is unavailable in this browser, so changes last only until you close the tab.' : ''} Sign in and sync across devices are coming.</p>
         <h3 className="form-section" id="members-head">Household members</h3>
-        <p className="muted small">Names only. Pick who is feeding on a food card so others can see who fed which pet and when.</p>
+        <p className="muted small">Pick who is feeding on a food card so others can see who fed which pet and when. A phone is optional; it shows as the emergency contact on sitter care sheets.</p>
         {members.length === 0 ? <p className="muted small">No names added yet.</p> : (
           <ul className="member-list" aria-labelledby="members-head">
             {members.map((m) => (
               <li key={m}>
                 <span className="member-dot" aria-hidden="true">{m.slice(0, 1).toUpperCase()}</span>
-                <span className="grow">{m}</span>
+                <span className="grow">{m}{phones[m] && <span className="muted small block">{phones[m]}</span>}</span>
+                <button type="button" className="icon-btn" aria-label={phones[m] ? `Edit phone for ${m}` : `Add phone for ${m}`} onClick={() => { setPhoneFor(m); setPhone(phones[m] ?? ''); }}><Icon name="phone" size={18} /></button>
                 <button type="button" className="icon-btn" aria-label={`Remove ${m}`} onClick={() => saveMembers(members.filter((x) => x !== m), `${m} removed`)}><Icon name="x" size={18} /></button>
               </li>
             ))}
@@ -91,9 +105,17 @@ export function AccountPage() {
       </Card>
       <Card className="danger-zone">
         <h2>Delete all data</h2>
-        <p className="muted small">Removes your household, pets, records, food and treats, feedings, expenses, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
+        <p className="muted small">Removes your household, pets, records, food and treats, feedings, expenses, sitters, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
         <Button variant="danger" icon="trash" onClick={() => setConfirmDelete(true)}>Delete everything</Button>
       </Card>
+      {phoneFor && (
+        <Sheet open title={`Phone for ${phoneFor}`} onClose={() => setPhoneFor(null)} footer={<><Button variant="secondary" onClick={() => setPhoneFor(null)}>Cancel</Button><Button onClick={savePhone}>Save</Button></>}>
+          <form className="form" onSubmit={(e) => { e.preventDefault(); void savePhone(); }}>
+            <TextField label="Phone (optional)" type="tel" inputMode="tel" value={phone} onChange={setPhone} maxLength={30} hint="Leave blank to remove. Stays on this device." />
+            <button type="submit" hidden />
+          </form>
+        </Sheet>
+      )}
       <Confirm open={!!confirmImport} title="Replace your data?" confirmLabel="Import" body="Importing replaces everything currently on this device with the file's contents." onCancel={() => setConfirmImport(null)}
         onConfirm={async () => {
           try { const r = await importAll(db, confirmImport); toast(`Imported ${r.pets} pet${r.pets === 1 ? '' : 's'}, ${r.places} place${r.places === 1 ? '' : 's'}, ${r.trips} trip${r.trips === 1 ? '' : 's'}`); setConfirmImport(null); navigate('/', true); }

@@ -204,6 +204,18 @@ export function TripDetailPage({ tripId }: { tripId: string }) {
         {trip.startsOn && daysBetween(today(), trip.startsOn) >= 0 && <Badge tone="accent">Starts {relativeDay(trip.startsOn)}</Badge>}
       </Card>
 
+      {trip.startsOn && tripStatus(trip) !== 'past' && (() => {
+        const req = data.sitterRequests.find((r) => r.tripId === trip.id && r.status !== 'cancelled');
+        return (
+          <Card className="sitter-cta">
+            <div className="mini-head"><Icon name="sitter" /><h2>{req ? (req.status === 'booked' ? `Sitter booked: ${req.bookedName}` : 'Sitter request saved') : 'Pets staying home?'}</h2></div>
+            {req
+              ? <Link to="/sitters" className="text-link">See your sitter request</Link>
+              : <Link to={`/sitters/new?trip=${trip.id}`} className="btn btn-secondary"><Icon name="search" size={20} /><span>Need a sitter for these dates?</span></Link>}
+          </Card>
+        );
+      })()}
+
       {reminders.length > 0 && (
         <Card className="reminders">
           <div className="mini-head"><Icon name="bell" /><h2>Travel reminders</h2></div>

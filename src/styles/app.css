@@ -586,6 +586,60 @@ main:focus { outline: none; }
 .menu-icon.cat { background: var(--c-accent-soft); color: var(--c-accent); }
 .breed-cta { background: linear-gradient(180deg, var(--c-accent-soft), var(--c-surface)); }
 .pet-tools { display: flex; flex-wrap: wrap; gap: 8px; margin: -4px 0 14px; }
-.quick { grid-template-columns: repeat(3, 1fr); }
+.quick { grid-template-columns: repeat(4, 1fr); }
+.quick-btn span { overflow-wrap: anywhere; }
 .photo-actions { position: relative; }
 .photo-actions .visually-hidden { left: 0; top: 0; }
+
+/* ---------- sitters ---------- */
+.sitter-requests, .sitter-list { list-style: none; margin: 0; padding: 0; }
+.sitter-request + .sitter-request, .sitter + .sitter { border-top: 1px solid var(--c-border); margin-top: 12px; padding-top: 12px; }
+.sitter-request-top, .sitter-top { display: flex; gap: 12px; align-items: flex-start; }
+.sitter-request.cancelled { opacity: 0.7; }
+.sitter-notes { margin: 6px 0 0; }
+.past-requests { margin-top: 12px; border-top: 1px dashed var(--c-border); padding-top: 4px; }
+.past-requests summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--c-primary); }
+.copy-value { display: flex; align-items: center; gap: 8px; min-height: var(--tap); background: var(--c-surface-alt); border-radius: var(--radius-sm); padding-left: 12px; margin-top: 8px; color: var(--c-primary); }
+.copy-text { user-select: all; -webkit-user-select: all; font-weight: 700; color: var(--c-text); overflow-wrap: anywhere; }
+.stars-read { display: inline-flex; gap: 1px; margin-top: 2px; color: var(--c-border); }
+.stars-read .on { color: var(--c-accent); }
+.stars-read .on path { fill: currentColor; }
+.service-choices { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.provider-btn { justify-content: flex-start; }
+.search-note { display: flex; gap: 6px; align-items: flex-start; margin: 12px 0 0; color: var(--c-text-muted); }
+.search-note svg { flex-shrink: 0; margin-top: 2px; color: var(--c-primary); }
+.sticky-actions {
+  position: sticky; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 8px); z-index: 5; justify-content: flex-end;
+  background: color-mix(in srgb, var(--c-surface) 92%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--c-border);
+  border-radius: 999px; padding: 6px; box-shadow: var(--shadow);
+}
+.sticky-actions .btn { flex: 1 1 0; }
+@media (min-width: 960px) { .sticky-actions { bottom: 12px; } }
+.sitter-cta .btn { margin-top: 4px; }
+.sheet-cta .btn { margin-top: 4px; }
+
+/* care sheet: reads like a handout */
+.care-sheet { background: var(--c-surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--c-border); border-top: 6px solid var(--c-primary); padding: 18px 16px 12px; margin: 0 0 14px; }
+.care-sheet-head { display: flex; gap: 12px; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--c-border); }
+.care-sheet-head img { border-radius: 10px; background: #fdfcf8; flex-shrink: 0; }
+.care-sheet-head h2 { font-family: var(--font-display); font-size: 1.3rem; margin: 0; overflow-wrap: anywhere; }
+.care-sheet-head p { margin: 2px 0 0; }
+.care-sheet-pet { padding: 14px 0 6px; border-bottom: 1px solid var(--c-border); }
+.care-sheet-pet-head { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+.care-sheet-pet-head h3 { margin: 0; font-size: 1.15rem; }
+.care-sheet-pet-head p { margin: 0; }
+.care-sheet-list { margin: 0; }
+.care-sheet-list > div { padding: 8px 0; }
+.care-sheet-list > div + div { border-top: 1px dashed color-mix(in srgb, var(--c-border) 80%, transparent); }
+.care-sheet-list dt { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--c-primary); margin-bottom: 2px; }
+.care-sheet-list dd { margin: 0; overflow-wrap: anywhere; }
+.care-sheet-list dd ul { margin: 0; padding-left: 18px; }
+.care-sheet-list dd li + li { margin-top: 2px; }
+.care-sheet-list .warn dd { color: var(--c-warning); font-weight: 700; }
+.care-sheet-house { padding-top: 6px; }
+.care-sheet-foot { text-align: center; margin: 10px 0 0; }
+@media print {
+  .tabbar, .side-brand, .demo-banner, .no-print, .page-header .back-btn { display: none !important; }
+  .app { padding: 0; }
+  .care-sheet { box-shadow: none; border-color: #ccc; }
+}

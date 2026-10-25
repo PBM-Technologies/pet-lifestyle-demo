@@ -21,6 +21,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
   const [microchip, setMicrochip] = useState(pet?.microchip ?? '');
   const [vetName, setVetName] = useState(pet?.vetName ?? '');
   const [vetPhone, setVetPhone] = useState(pet?.vetPhone ?? '');
+  const [quirks, setQuirks] = useState(pet?.quirks ?? '');
   const [calories, setCalories] = useState(pet?.dailyCalorieTarget !== undefined ? String(pet.dailyCalorieTarget) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
@@ -54,6 +55,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
       vetName: vetName.trim() || undefined,
       vetPhone: vetPhone.trim() || undefined,
       dailyCalorieTarget: kcal,
+      quirks: quirks.trim() || undefined,
       updatedAt: now,
     } as Pet;
     try {
@@ -94,6 +96,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
         <TextField label="Allergies" value={allergies} onChange={setAllergies} placeholder="Chicken, beef" hint="Separate with commas. Used to prefill box restrictions." />
         <TextField label="Diet notes" value={diet} onChange={setDiet} multiline />
         <TextField label="Daily calorie target (optional)" value={calories} onChange={setCalories} inputMode="numeric" error={errors.calories} hint={CALORIE_HELP} />
+        <TextField label="Quirks and habits (for sitters)" value={quirks} onChange={setQuirks} multiline maxLength={800} placeholder="Hides under the bed during storms. Pulls toward squirrels." />
         <TextField label="Microchip number" value={microchip} onChange={setMicrochip} error={errors.microchip} inputMode="numeric" />
         <div className="field-row">
           <TextField label="Vet name" value={vetName} onChange={setVetName} />

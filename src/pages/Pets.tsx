@@ -101,6 +101,7 @@ export function PetDetailPage({ petId }: { petId: string }) {
 
       <div className="pet-tools">
         <Link to={`/health-check?pet=${pet.id}`} className="btn btn-secondary"><Icon name="camera" size={20} /><span>Check with a photo</span></Link>
+        <Link to={`/sitters/new?pet=${pet.id}`} className="btn btn-secondary"><Icon name="sitter" size={20} /><span>Find a sitter</span></Link>
         {(pet.species === 'dog' || pet.species === 'cat') && <Link to={`/identify?pet=${pet.id}`} className="btn btn-ghost"><Icon name="search" size={20} /><span>Identify breed</span></Link>}
       </div>
 
@@ -203,6 +204,7 @@ export function PetDetailPage({ petId }: { petId: string }) {
             <div><dt>Weight</dt><dd>{pet.weight ? `${pet.weight} ${pet.weightUnit ?? 'lb'}` : 'Not set'}</dd></div>
             <div><dt>Allergies</dt><dd>{pet.allergies.length ? pet.allergies.join(', ') : 'None listed'}</dd></div>
             <div><dt>Diet notes</dt><dd>{pet.dietaryNotes || 'None'}</dd></div>
+            <div><dt>Quirks for sitters</dt><dd>{pet.quirks || 'None'}</dd></div>
             <div><dt>Microchip</dt><dd>{pet.microchip || 'Not saved'}</dd></div>
             <div><dt>Vet</dt><dd>{pet.vetName || 'Not set'}{pet.vetPhone && <> · <a href={`tel:${pet.vetPhone.replace(/[^0-9+]/g, '')}`} className="text-link">{pet.vetPhone}</a></>}</dd></div>
           </dl>

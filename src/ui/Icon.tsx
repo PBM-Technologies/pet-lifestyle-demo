@@ -38,6 +38,12 @@ const PATHS: Record<string, string> = {
   cross: 'M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0-13v5l3 2',
   suitcase: 'M4 8h16v12H4zM9 8V5h6v3M4 13h16',
+  copy: 'M9 9h10v11H9zM15 9V4H5v11h4',
+  share: 'M12 3v12M8 7l4-4 4 4M5 12v8h14v-8',
+  phone: 'M6 3h3l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v3a2 2 0 0 1-2 2A16 16 0 0 1 4 5a2 2 0 0 1 2-2z',
+  mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+  plate: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z',
+  sitter: 'M3 11.5 12 4l9 7.5M5 10v10h14V10M12 13.5c-1.6 0-3 1.3-3 2.6 0 .8.7 1.2 1.4 1.2.6 0 1-.3 1.6-.3s1 .3 1.6.3c.7 0 1.4-.4 1.4-1.2 0-1.3-1.4-2.6-3-2.6z',
 };
 
 export function Icon({ name, size = 22, ...rest }: { name: keyof typeof PATHS | string; size?: number } & SVGProps<SVGSVGElement>) {

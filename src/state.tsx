@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { BoxPlan, CareEvent, CommunityPost, Expense, FeedingLog, FoodSwitchPlan, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace, TreatLog, TripPlan } from './contracts/domain';
+import type { BoxPlan, CareEvent, CommunityPost, Expense, FeedingLog, FoodSwitchPlan, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace, Sitter, SitterRequest, TreatLog, TripPlan } from './contracts/domain';
 import { allRepos, createDb, ensureSeeded, type Db } from './data/db';
 import { createLocalStorageStore } from './data/storage';
 import { DEMO_STORAGE_PREFIX, IS_DEMO, seedDemo } from './data/demo';
@@ -20,6 +20,8 @@ export interface Snapshot {
   treatLogs: TreatLog[];
   switchPlans: FoodSwitchPlan[];
   expenses: Expense[];
+  sitterRequests: SitterRequest[];
+  sitters: Sitter[];
   dismissed: Set<string>;
 }
 
@@ -36,19 +38,19 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null);
 
 const EMPTY: Snapshot = {
-  household: null, pets: [], care: [], documents: [], places: [], saved: [], trips: [], events: [], posts: [], boxPlans: [], food: [], feedings: [], treatLogs: [], switchPlans: [], expenses: [], dismissed: new Set(),
+  household: null, pets: [], care: [], documents: [], places: [], saved: [], trips: [], events: [], posts: [], boxPlans: [], food: [], feedings: [], treatLogs: [], switchPlans: [], expenses: [], sitterRequests: [], sitters: [], dismissed: new Set(),
 };
 
 async function loadSnapshot(db: Db): Promise<Snapshot> {
-  const [households, pets, care, documents, places, saved, trips, events, posts, boxPlans, food, feedings, treatLogs, switchPlans, expenses, dismissed] = await Promise.all([
+  const [households, pets, care, documents, places, saved, trips, events, posts, boxPlans, food, feedings, treatLogs, switchPlans, expenses, sitterRequests, sitters, dismissed] = await Promise.all([
     db.households.list(), db.pets.list(), db.careEvents.list(), db.documents.list(), db.places.list(), db.savedPlaces.list(),
     db.trips.list(), db.events.list(), db.posts.list(), db.boxPlans.list(), db.petFood.list(),
-    db.feedingLogs.list(), db.treatLogs.list(), db.switchPlans.list(), db.expenses.list(), db.dismissed.list(),
+    db.feedingLogs.list(), db.treatLogs.list(), db.switchPlans.list(), db.expenses.list(), db.sitterRequests.list(), db.sitters.list(), db.dismissed.list(),
   ]);
   return {
     household: households[0] ?? null,
     pets: [...pets].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    care, documents, places, saved, trips, events, posts, boxPlans, food, feedings, treatLogs, switchPlans, expenses,
+    care, documents, places, saved, trips, events, posts, boxPlans, food, feedings, treatLogs, switchPlans, expenses, sitterRequests, sitters,
     dismissed: new Set(dismissed.map((d) => d.id)),
   };
 }

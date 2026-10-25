@@ -1,6 +1,6 @@
 import type {
   BoxPlan, CareEvent, CommunityPost, Expense, ExportBundle, FeedingLog, FoodSwitchPlan, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace,
-  TreatLog, TripPlan,
+  Sitter, SitterRequest, TreatLog, TripPlan,
 } from '../contracts/domain';
 import { createKvRepository, type Repository } from './repository';
 import { createLocalStorageStore, type KeyValueStore } from './storage';
@@ -26,6 +26,8 @@ export interface Db {
   treatLogs: Repository<TreatLog>;
   switchPlans: Repository<FoodSwitchPlan>;
   expenses: Repository<Expense>;
+  sitterRequests: Repository<SitterRequest>;
+  sitters: Repository<Sitter>;
   dismissed: Repository<Dismissed>;
 }
 
@@ -50,6 +52,8 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
     treatLogs: r('treat_logs'),
     switchPlans: r('food_switch_plans'),
     expenses: r('expenses'),
+    sitterRequests: r('sitter_requests'),
+    sitters: r('sitters'),
     dismissed: r('dismissed_notifications'),
   };
 }
@@ -57,7 +61,7 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
 /** Every repository, for reset and delete-all. */
 export function allRepos(db: Db): Array<Repository<{ id: string }>> {
   return [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood,
-    db.feedingLogs, db.treatLogs, db.switchPlans, db.expenses, db.dismissed] as unknown as Array<Repository<{ id: string }>>;
+    db.feedingLogs, db.treatLogs, db.switchPlans, db.expenses, db.sitterRequests, db.sitters, db.dismissed] as unknown as Array<Repository<{ id: string }>>;
 }
 
 /** Adds sample places and events once (first run). User can still delete them. */
@@ -92,6 +96,8 @@ export async function removeSamplePets(db: Db): Promise<void> {
   await db.treatLogs.replaceAll(await db.treatLogs.list((l) => !l.isSample));
   await db.switchPlans.replaceAll(await db.switchPlans.list((p) => !p.isSample));
   await db.expenses.replaceAll(await db.expenses.list((e) => !e.isSample));
+  await db.sitterRequests.replaceAll(await db.sitterRequests.list((r) => !r.isSample));
+  await db.sitters.replaceAll(await db.sitters.list((x) => !x.isSample));
   // detach sample pets from trips, events, posts, box plans
   const trips = await db.trips.list();
   for (const t of trips) if (t.petIds.some((id) => ids.has(id))) await db.trips.upsert({ ...t, petIds: t.petIds.filter((id) => !ids.has(id)), packing: t.packing.filter((i) => !i.petId || !ids.has(i.petId)) });
@@ -114,6 +120,13 @@ export async function removePet(db: Db, petId: string): Promise<void> {
   for (const e of events) if (e.petIds.includes(petId)) await db.events.upsert({ ...e, petIds: e.petIds.filter((x) => x !== petId) });
   const posts = await db.posts.list();
   for (const p of posts) if (p.petIds.includes(petId)) await db.posts.upsert({ ...p, petIds: p.petIds.filter((x) => x !== petId) });
+  // a request only for this pet goes away; shared ones just drop the pet
+  const requests = await db.sitterRequests.list();
+  if (requests.some((r) => r.petIds.includes(petId))) {
+    await db.sitterRequests.replaceAll(requests.filter((r) => !(r.petIds.length === 1 && r.petIds[0] === petId)).map((r) => (r.petIds.includes(petId) ? { ...r, petIds: r.petIds.filter((x) => x !== petId) } : r)));
+  }
+  const sitters = await db.sitters.list();
+  if (sitters.some((x) => x.petIds.includes(petId))) await db.sitters.replaceAll(sitters.map((x) => (x.petIds.includes(petId) ? { ...x, petIds: x.petIds.filter((id) => id !== petId) } : x)));
 }
 
 export async function removePlace(db: Db, placeId: string): Promise<void> {
@@ -141,6 +154,8 @@ export async function exportAll(db: Db, appName: string): Promise<ExportBundle> 
     treatLogs: await db.treatLogs.list(),
     switchPlans: await db.switchPlans.list(),
     expenses: await db.expenses.list(),
+    sitterRequests: await db.sitterRequests.list(),
+    sitters: await db.sitters.list(),
     dismissedNotifications: (await db.dismissed.list()).map((d) => d.id),
   };
 }
@@ -174,12 +189,15 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
     treatLogs: arr(b.treatLogs, 'treatLogs'),
     switchPlans: arr(b.switchPlans, 'switchPlans'),
     expenses: arr(b.expenses, 'expenses'),
+    sitterRequests: arr(b.sitterRequests, 'sitterRequests'),
+    sitters: arr(b.sitters, 'sitters'),
   };
   for (const [k, v] of Object.entries(lists)) if (!v.every(hasId)) throw new ImportError(`Some "${k}" records are missing an id.`);
   const pets = (lists.pets as Pet[]).map((p) => ({ ...p, allergies: Array.isArray(p.allergies) ? p.allergies : [] }));
   if (pets.some((p) => typeof p.name !== 'string' || !['dog', 'cat', 'other'].includes(p.species))) throw new ImportError('Some pets have an invalid name or species.');
   const household = b.household && hasId(b.household) ? (b.household as Household) : null;
   if (household && household.members !== undefined && !Array.isArray(household.members)) household.members = [];
+  if (household && (typeof household.memberPhones !== 'object' || household.memberPhones === null || Array.isArray(household.memberPhones))) delete household.memberPhones;
   await db.households.replaceAll(household ? [{ ...household, members: household.members?.filter((m) => typeof m === 'string') }] : []);
   await db.pets.replaceAll(pets);
   await db.careEvents.replaceAll(lists.careEvents as CareEvent[]);
@@ -195,6 +213,11 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
   await db.treatLogs.replaceAll((lists.treatLogs as TreatLog[]).filter((l) => typeof l.foodId === 'string' && typeof l.day === 'string').map((l) => ({ ...l, count: Math.max(0, Number(l.count) || 0) })));
   await db.switchPlans.replaceAll((lists.switchPlans as FoodSwitchPlan[]).filter((p) => p.days === 7 || p.days === 10));
   await db.expenses.replaceAll((lists.expenses as Expense[]).filter((e) => typeof e.amount === 'number' && e.amount >= 0 && typeof e.date === 'string'));
+  const isDay = (v: unknown) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  await db.sitterRequests.replaceAll((lists.sitterRequests as SitterRequest[]).filter((r) => isDay(r.startsOn) && isDay(r.endsOn))
+    .map((r) => ({ ...r, petIds: Array.isArray(r.petIds) ? r.petIds : [], services: Array.isArray(r.services) ? r.services : [], status: ['open', 'booked', 'cancelled'].includes(r.status) ? r.status : 'open' })));
+  await db.sitters.replaceAll((lists.sitters as Sitter[]).filter((x) => typeof x.name === 'string' && x.name.trim() !== '')
+    .map((x) => ({ ...x, petIds: Array.isArray(x.petIds) ? x.petIds : [], foundVia: typeof x.foundVia === 'string' ? x.foundVia : 'friend_family' })));
   await db.dismissed.replaceAll((Array.isArray(b.dismissedNotifications) ? b.dismissedNotifications : []).filter((x): x is string => typeof x === 'string').map((id) => ({ id })));
   db.store.setItem('meta:seeded', '1');
   return { pets: pets.length, places: lists.places.length, trips: lists.trips.length };

@@ -1,4 +1,6 @@
-import type { BoxPlan, CommunityPost, Household, SavedPlace, TripPlan } from '../contracts/domain';
+import type { BoxPlan, CommunityPost, Household, SavedPlace, Sitter, SitterRequest, TripPlan } from '../contracts/domain';
+import { BRAND } from '../config/brand';
+import { FRIEND_FAMILY } from '../lib/sitters';
 import { addDays, today } from '../lib/dates';
 import { buildPackingList } from '../lib/packing';
 import { restrictionsFromAllergies } from '../lib/boxes';
@@ -20,7 +22,10 @@ export async function seedDemo(db: Db, base: string = today()): Promise<void> {
   await ensureSeeded(db);
   const now = new Date().toISOString();
   // Household member names exist only in the demo; real households start empty.
-  const household: Household = { id: HOUSEHOLD_ID, name: 'The Parkers', members: ['Sarah', 'Alex'], createdAt: now, updatedAt: now };
+  const household: Household = {
+    id: HOUSEHOLD_ID, name: 'The Parkers', members: ['Sarah', 'Alex'], memberPhones: { Sarah: '555-0142 (sample)' }, emergencyContact: 'Sarah',
+    houseNotes: 'Spare key is with the neighbor at number 12 (sample).\nFood and treats are in the pantry, top shelf.', createdAt: now, updatedAt: now,
+  };
   await db.households.upsert(household);
   await loadSamplePets(db, HOUSEHOLD_ID);
   const { pets } = samplePets(HOUSEHOLD_ID, base);
@@ -83,6 +88,20 @@ export async function seedDemo(db: Db, base: string = today()): Promise<void> {
     id: 'demo-post-1', householdId: HOUSEHOLD_ID, petIds: [bailey.id], caption: 'First swim of the season. Ears rinsed, zero regrets.', createdAt: now, updatedAt: now,
   };
   await db.posts.upsert(post);
+
+  // Luna stays home during the Lakeview weekend, so the demo has an open sitter request for those dates.
+  const luna = pets.find((p) => p.id === SAMPLE_PET_IDS.luna)!;
+  const sitter: Sitter = {
+    id: 'demo-sitter-jordan', householdId: HOUSEHOLD_ID, name: 'Jordan (sample)', phone: '555-0199', email: 'jordan@example.com',
+    foundVia: BRAND.sitterProviders.find((p) => p.id === 'rover')?.id ?? FRIEND_FAMILY, rating: 5, petIds: [luna.id],
+    notes: 'Did drop-ins for Luna last spring. Great with shy cats.', isSample: true, createdAt: now, updatedAt: now,
+  };
+  await db.sitters.upsert(sitter);
+  const request: SitterRequest = {
+    id: 'demo-sitter-request-lakeview', householdId: HOUSEHOLD_ID, petIds: [luna.id], services: ['drop_in'], startsOn: trip.startsOn as string, endsOn: trip.endsOn as string,
+    location: 'Sampleton', notes: 'Two visits a day while we are at the lake.', tripId: trip.id, status: 'open', isSample: true, createdAt: now, updatedAt: now,
+  };
+  await db.sitterRequests.upsert(request);
 }
 
 /** Wipes demo storage and loads the demo again. */
