@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { BoxPlan, CareEvent, CommunityPost, Household, Pet, PetDocument, PetEvent, PlaceListing, SavedPlace, TripPlan } from './contracts/domain';
 import { createDb, ensureSeeded, type Db } from './data/db';
+import { createLocalStorageStore } from './data/storage';
+import { DEMO_STORAGE_PREFIX, IS_DEMO, seedDemo } from './data/demo';
 
 export interface Snapshot {
   household: Household | null;
@@ -46,7 +48,7 @@ async function loadSnapshot(db: Db): Promise<Snapshot> {
 }
 
 export function AppProvider({ children, db: injected }: { children: ReactNode; db?: Db }) {
-  const db = useMemo(() => injected ?? createDb(), [injected]);
+  const db = useMemo(() => injected ?? (IS_DEMO ? createDb(createLocalStorageStore(DEMO_STORAGE_PREFIX)) : createDb()), [injected]);
   const [data, setData] = useState<Snapshot>(EMPTY);
   const [status, setStatus] = useState<AppState['status']>('loading');
   const [error, setError] = useState<string>();
@@ -66,7 +68,8 @@ export function AppProvider({ children, db: injected }: { children: ReactNode; d
     let alive = true;
     (async () => {
       try {
-        await ensureSeeded(db);
+        if (IS_DEMO) await seedDemo(db);
+        else await ensureSeeded(db);
       } catch {
         /* seeding is best effort */
       }

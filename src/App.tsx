@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { IS_DEMO, resetDemo } from './data/demo';
 import { useEffect, type ReactNode } from 'react';
 import { BRAND } from './config/brand';
 import { matchPattern, useHashPath, Link } from './router';
@@ -100,6 +102,7 @@ export function App() {
           {unread > 0 && <span className="dot">{unread > 9 ? '9+' : unread}</span>}
         </Link>
       </aside>
+      {IS_DEMO && <DemoBanner />}
       <main id="main" tabIndex={-1} key={path}>
         {match ? match.route.render(match.params, query) : <NotFound />}
       </main>
@@ -114,6 +117,17 @@ export function App() {
       <div className="toast-region" aria-live="polite" role="status">
         {toastMessage && <div className="toast">{toastMessage}</div>}
       </div>
+    </div>
+  );
+}
+
+function DemoBanner() {
+  const { db, toast } = useApp();
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="demo-banner" role="note">
+      <span><strong>Demo</strong> with sample data</span>
+      <button type="button" disabled={busy} onClick={async () => { setBusy(true); await resetDemo(db); setBusy(false); location.hash = '#/'; toast('Demo reset'); }}>Reset demo</button>
     </div>
   );
 }
