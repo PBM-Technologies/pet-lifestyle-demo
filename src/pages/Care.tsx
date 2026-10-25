@@ -1,7 +1,8 @@
 import { useApp } from '../state';
 import { Link } from '../router';
 import { Badge, Card, EmptyState, PageHeader, PetAvatar } from '../ui/kit';
-import { CARE_TYPE_LABEL, SCHEDULED_TYPES, dueStatus } from '../lib/care';
+import { CARE_TYPE_LABEL, hasFollowUp, dueStatus } from '../lib/care';
+import { Icon } from '../ui/Icon';
 import { formatDay, relativeDay } from '../lib/dates';
 
 /** Household-wide care schedule across all pets. */
@@ -9,7 +10,7 @@ export function CarePage() {
   const { data } = useApp();
   const byPet = new Map(data.pets.map((p) => [p.id, p]));
   const open = data.care
-    .filter((c) => SCHEDULED_TYPES.includes(c.type) && c.dueDate && !c.completedAt)
+    .filter((c) => hasFollowUp(c) && c.dueDate && !c.completedAt)
     .sort((a, b) => (a.dueDate as string).localeCompare(b.dueDate as string));
   const recent = [...data.care].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
 
@@ -20,6 +21,11 @@ export function CarePage() {
         <EmptyState title="No pets yet" action={<Link to="/pets?add=1" className="btn btn-primary">Add a pet</Link>}>Care schedules appear once you add a pet.</EmptyState>
       ) : (
         <>
+          <Card className="breed-cta">
+            <div className="mini-head"><Icon name="camera" /><h2>Photo health check</h2></div>
+            <p className="small muted">Worried about a spot, an ear or a limp? Snap a photo for a calm first look, then save it to the care record.</p>
+            <Link to="/health-check" className="btn btn-primary"><Icon name="camera" size={20} /><span>Check with a photo</span></Link>
+          </Card>
           <Card>
             <h2>Schedule</h2>
             {open.length === 0 ? <p className="muted">No upcoming due dates. Add vaccines, meds or preventives from a pet profile.</p> : (

@@ -35,6 +35,7 @@ const PATHS: Record<string, string> = {
   info: 'M12 8h.01M11 12h1v5h1M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z',
   alert: 'M12 4 2.5 20h19zM12 10v4m0 3h.01',
   external: 'M14 4h6v6m0-6-9 9M18 14v6H4V6h6',
+  cross: 'M10 4h4v6h6v4h-6v6h-4v-6H4v-4h6z',
   clock: 'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zm0-13v5l3 2',
   suitcase: 'M4 8h16v12H4zM9 8V5h6v3M4 13h16',
 };

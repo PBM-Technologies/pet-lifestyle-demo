@@ -5,6 +5,7 @@ import { parseList } from '../lib/boxes';
 import { CALORIE_HELP } from '../lib/feeding';
 import { useApp } from '../state';
 import { Button, ChoiceGroup, PhotoInput, Sheet, TextField } from '../ui/kit';
+import { IdentifyPanel } from './Identify';
 
 export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; onClose: () => void; pet?: Pet; onSaved?: (p: Pet) => void }) {
   const { db, data, toast } = useApp();
@@ -23,6 +24,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
   const [calories, setCalories] = useState(pet?.dailyCalorieTarget !== undefined ? String(pet.dailyCalorieTarget) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [identifying, setIdentifying] = useState(false);
 
   const save = async () => {
     const e: Record<string, string> = {};
@@ -71,8 +73,9 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
   };
 
   return (
+    <>
     <Sheet
-      open={open}
+      open={open && !identifying}
       title={pet ? `Edit ${pet.name}` : 'Add a pet'}
       onClose={onClose}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button onClick={save} disabled={saving}>{saving ? 'Saving' : 'Save pet'}</Button></>}
@@ -82,6 +85,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
         <TextField label="Name" value={name} onChange={setName} error={errors.name} required maxLength={40} />
         <ChoiceGroup<Species> label="Species" value={species} onChange={setSpecies} columns={3} options={[{ value: 'dog', label: 'Dog' }, { value: 'cat', label: 'Cat' }, { value: 'other', label: 'Other' }]} />
         <TextField label="Breed" value={breed} onChange={setBreed} placeholder={species === 'cat' ? 'Domestic Shorthair' : species === 'dog' ? 'Mixed breed' : 'Rabbit, bird, reptile'} />
+        {species !== 'other' && <div style={{ marginTop: -6, marginBottom: 10 }}><Button variant="ghost" icon="camera" onClick={() => setIdentifying(true)}>Identify breed from photo</Button></div>}
         <TextField label="Birth date" type="date" value={birthDate} onChange={setBirthDate} error={errors.birthDate} hint="An estimate is fine." />
         <div className="field-row">
           <TextField label="Weight" value={weight} onChange={setWeight} inputMode="decimal" error={errors.weight} />
@@ -99,5 +103,9 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
         <button type="submit" hidden />
       </form>
     </Sheet>
+    <Sheet open={open && identifying} title="Identify breed from photo" onClose={() => setIdentifying(false)}>
+      <IdentifyPanel compact onUse={(b, sp) => { setBreed(b); if (sp !== 'other') setSpecies(sp); setIdentifying(false); }} />
+    </Sheet>
+    </>
   );
 }

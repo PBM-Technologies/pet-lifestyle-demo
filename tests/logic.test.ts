@@ -51,15 +51,17 @@ describe('due soon logic', () => {
     expect(dueStatus({}, on)).toBe('none');
     expect(dueStatus({ dueDate: '2026-10-20', completedAt: 'x' }, on)).toBe('done');
   });
-  it('lists overdue and due soon items sorted, skipping done, notes and far future', () => {
+  it('lists overdue and due soon items sorted, skipping done, plain notes and far future; notes with a follow-up date count', () => {
     const items = dueSoon([
       care({ id: 'a', dueDate: '2026-11-10' }),
       care({ id: 'b', dueDate: '2026-10-01' }),
       care({ id: 'c', dueDate: '2027-05-01' }),
       care({ id: 'd', dueDate: '2026-10-28', completedAt: 'x' }),
       care({ id: 'e', type: 'note', dueDate: '2026-10-26' }),
+      care({ id: 'f', type: 'note' }),
+      care({ id: 'g', type: 'weight', dueDate: '2026-10-27' }),
     ], [pet({})], on);
-    expect(items.map((i) => i.event.id)).toEqual(['b', 'a']);
+    expect(items.map((i) => i.event.id)).toEqual(['b', 'e', 'a']);
     expect(items[0].status).toBe('overdue');
     expect(items[0].pet?.name).toBe('Bo');
   });

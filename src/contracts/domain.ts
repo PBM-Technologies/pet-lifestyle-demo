@@ -318,3 +318,39 @@ export interface ExportBundle {
   expenses?: Expense[];
   dismissedNotifications: ID[];
 }
+
+// ---------------------------------------------------------------------------
+// Photo checks (vision model output, sanitized before use). Never stored as-is.
+// ---------------------------------------------------------------------------
+
+export type Confidence = 'high' | 'medium' | 'low';
+
+export interface BreedMatch { breed: string; confidence: Confidence; why: string }
+
+export interface BreedIdResult {
+  species: Species;
+  topMatches: BreedMatch[];
+  mixedLikely: boolean;
+  sizeGuess: string;
+  coatNotes: string;
+  notes: string;
+}
+
+export type Likelihood = 'likely' | 'possible' | 'less likely';
+export type Urgency = 'routine' | 'soon' | 'urgent';
+
+export interface PossibleIssue {
+  name: string;
+  likelihood: Likelihood;
+  signsSeen: string;
+  checkAtHome: string[];
+  careSteps: string[];
+}
+
+export interface PetHealthResult {
+  photoUsable: boolean;
+  possibleIssues: PossibleIssue[];
+  urgency: Urgency;
+  seeVetIf: string[];
+  summary: string;
+}

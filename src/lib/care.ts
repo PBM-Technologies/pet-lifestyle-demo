@@ -15,6 +15,11 @@ export const CARE_TYPE_LABEL: Record<CareEventType, string> = {
 /** Types that carry a next-due date and appear in reminders. */
 export const SCHEDULED_TYPES: CareEventType[] = ['vaccine', 'medication', 'flea_tick', 'heartworm', 'vet_visit', 'grooming'];
 
+/** Scheduled types, plus care notes that carry a follow-up date (for example a saved photo check). */
+export function hasFollowUp(e: Pick<CareEvent, 'type' | 'dueDate'>): boolean {
+  return SCHEDULED_TYPES.includes(e.type) || (e.type === 'note' && !!e.dueDate);
+}
+
 export const DUE_SOON_DAYS = 30;
 
 export type DueStatus = 'overdue' | 'due_soon' | 'upcoming' | 'none' | 'done';
@@ -39,7 +44,7 @@ export interface DueItem {
 export function dueSoon(events: CareEvent[], pets: Pet[], on: string = today(), windowDays = DUE_SOON_DAYS): DueItem[] {
   const byId = new Map(pets.map((p) => [p.id, p]));
   return events
-    .filter((e) => SCHEDULED_TYPES.includes(e.type))
+    .filter((e) => hasFollowUp(e))
     .map((e) => ({ e, s: dueStatus(e, on, windowDays) }))
     .filter((x): x is { e: CareEvent; s: 'overdue' | 'due_soon' } => x.s === 'overdue' || x.s === 'due_soon')
     .map(({ e, s }) => ({ event: e, pet: byId.get(e.petId), status: s, daysUntil: daysBetween(on, e.dueDate as string) }))

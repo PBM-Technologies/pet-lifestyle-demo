@@ -55,7 +55,8 @@ export function CareFormSheet({ open, onClose, pet, initialType = 'vaccine', eve
       type,
       title: t,
       date,
-      dueDate: scheduled ? (dueDate || (rd ? addDays(date, rd) : undefined)) : undefined,
+      // follow-up dates on notes (from a saved photo check) are kept when the note is edited
+      dueDate: scheduled ? (dueDate || (rd ? addDays(date, rd) : undefined)) : type === 'note' ? event?.dueDate : undefined,
       repeatDays: scheduled ? rd : undefined,
       value: type === 'weight' ? v : undefined,
       notes: notes.trim() || undefined,

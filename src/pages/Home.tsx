@@ -45,6 +45,8 @@ export function HomePage() {
           <Link to="/explore" className="quick-btn"><Icon name="pin" /><span>Find places</span></Link>
           <Link to="/travel?add=1" className="quick-btn"><Icon name="suitcase" /><span>Plan trip</span></Link>
           <Link to="/boxes/build" className="quick-btn"><Icon name="gift" /><span>Build box</span></Link>
+          <Link to="/identify" className="quick-btn"><Icon name="search" /><span>Identify breed</span></Link>
+          <Link to="/health-check" className="quick-btn"><Icon name="camera" /><span>Health check</span></Link>
         </div>
       </section>
 

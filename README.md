@@ -41,6 +41,8 @@ src/data/repository.ts     Repository<T> interface (list/get/upsert/remove) + KV
 src/data/db.ts             per-domain repositories, seeding, export/import/delete, CSV
 src/data/samples.ts        clearly labeled fictional sample places, events and pets
 src/lib/*                  pure logic: dates/age, care due-soon, food estimates, feeding and treat budget, food switch plans, spending, packing, boxes, places, notifications
+src/ai/*                   photo checks: vision adapter (claude.ai runtime, VITE_AI_ENDPOINT, or off) and prompts with output sanitizers
+src/content/breeds.ts      original breed guide data for dogs and cats
 src/pages/*                screens for every route
 src/ui/*                   design system: buttons, sheets, tap-friendly pickers, icons, chart
 database/0001_identity.sql users, households, membership, notifications
@@ -54,7 +56,7 @@ To move to a backend, implement `Repository<T>` for Firebase or a Postgres API a
 
 ## Routes
 
-`#/` home, `#/explore`, `#/explore/:placeId`, `#/travel`, `#/travel/:tripId`, `#/pets`, `#/pets/:petId`, `#/care`, `#/community`, `#/events`, `#/boxes`, `#/boxes/build`, `#/shop`, `#/spending`, `#/account`, plus `#/more` and `#/notifications` for the mobile shell.
+`#/` home, `#/explore`, `#/explore/:placeId`, `#/travel`, `#/travel/:tripId`, `#/pets`, `#/pets/:petId`, `#/care`, `#/community`, `#/events`, `#/boxes`, `#/boxes/build`, `#/shop`, `#/spending`, `#/identify`, `#/health-check`, `#/breeds`, `#/breeds/match`, `#/breeds/:slug`, `#/account`, plus `#/more` and `#/notifications` for the mobile shell.
 
 ## Honest limits of this phase
 
@@ -64,3 +66,4 @@ To move to a backend, implement `Repository<T>` for Firebase or a Postgres API a
 - Box checkout is disabled ("Coming soon"); no prices exist.
 - Partner brands are outbound links only.
 - Reminders are in-app only; no push notifications.
+- Photo checks (breed ID, health check) only work where a vision model is available: the claude.ai artifact runtime or a configured `VITE_AI_ENDPOINT`. Otherwise the screens show a calm note and everything else works offline. Results are best guesses, never a diagnosis.

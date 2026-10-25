@@ -21,6 +21,9 @@ import { AccountPage } from './pages/Account';
 import { MorePage } from './pages/More';
 import { NotificationsPage } from './pages/Notifications';
 import { SpendingPage } from './pages/Spending';
+import { IdentifyPage } from './pages/Identify';
+import { HealthCheckPage } from './pages/HealthCheck';
+import { BreedDetailPage, BreedMatchPage, BreedsPage } from './pages/Breeds';
 
 type Render = (p: Record<string, string>, q: URLSearchParams) => ReactNode;
 
@@ -40,6 +43,11 @@ export const ROUTES: Array<{ pattern: string; title: string; tab: Tab; render: R
   { pattern: '/boxes/build', title: 'Build a box', tab: 'more', render: (_p, q) => <BoxBuilderPage query={q} /> },
   { pattern: '/shop', title: 'Shop', tab: 'more', render: () => <ShopPage /> },
   { pattern: '/account', title: 'Account', tab: 'more', render: () => <AccountPage /> },
+  { pattern: '/identify', title: 'Identify breed', tab: 'pets', render: (_p, q) => <IdentifyPage query={q} /> },
+  { pattern: '/health-check', title: 'Photo health check', tab: 'pets', render: (_p, q) => <HealthCheckPage query={q} /> },
+  { pattern: '/breeds', title: 'Breed guide', tab: 'more', render: () => <BreedsPage /> },
+  { pattern: '/breeds/match', title: 'Find your match', tab: 'more', render: () => <BreedMatchPage /> },
+  { pattern: '/breeds/:slug', title: 'Breed', tab: 'more', render: (p) => <BreedDetailPage slug={p.slug} /> },
   { pattern: '/spending', title: 'Spending', tab: 'more', render: () => <SpendingPage /> },
   { pattern: '/more', title: 'More', tab: 'more', render: () => <MorePage /> },
   { pattern: '/notifications', title: 'Notifications', tab: 'home', render: () => <NotificationsPage /> },

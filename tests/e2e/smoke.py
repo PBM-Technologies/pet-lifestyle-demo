@@ -77,6 +77,126 @@ def demo_shot(page, name, top=None):
     page.screenshot(path=f'{DEMO_SHOTS}/{name}.png')
 
 
+FAKE_CLAUDE = r"""
+(() => {
+  const BREED = {species: "dog", mixedLikely: false, sizeGuess: "Large, about 55 to 75 lb as an adult", coatNotes: "Medium length golden coat with feathering on the legs and tail.",
+    notes: "The feathered golden coat and soft ears point to a Golden Retriever. Some Lab mixes look similar.",
+    topMatches: [{breed: "Golden Retriever", confidence: "high", why: "Feathered golden coat, friendly broad head and drop ears."},
+                 {breed: "Labrador Retriever", confidence: "low", why: "Similar build, but the coat looks longer than a Lab coat."}]};
+  const HEALTH = {photoUsable: true, urgency: "soon", summary: "The red, thin patch near the tail base with scratching can point to fleas or a flea allergy. Worth a closer look and a vet call in the next day or two.",
+    possibleIssues: [
+      {name: "Flea allergy dermatitis", likelihood: "likely", signsSeen: "Redness and thinning fur near the base of the tail.", checkAtHome: ["Run a flea comb near the tail base", "Look for black specks that turn red on a wet paper towel", "Check other pets too"], careSteps: ["Wash bedding in hot water", "Vacuum where your pet sleeps", "Call your vet before using any flea product"]},
+      {name: "Hot spot", likelihood: "possible", signsSeen: "A moist looking area of skin.", checkAtHome: ["Feel for warmth or dampness"], careSteps: ["Keep the area clean and dry", "Stop licking with a cone if needed"]}],
+    seeVetIf: ["The skin is open, oozing or smells bad", "Your pet seems in pain or stops eating", "It spreads over a day or two"]};
+  window.__aiCalls = [];
+  const sample = {
+    limits: async () => ({ maxInputBytes: 262144, images: { maxCount: 3, maxInputBytes: 20000000, mediaTypes: ["image/jpeg", "image/png"] } }),
+    json: async (prompt, opts) => {
+      window.__aiCalls.push({ images: (opts && opts.images || []).length, tier: opts && opts.modelTier, types: (opts && opts.images || []).map(b => b.type) });
+      await new Promise(r => setTimeout(r, 400));
+      if (opts && opts.signal && opts.signal.aborted) throw { code: "cancelled", message: "aborted" };
+      if (/health problems/.test(prompt)) return HEALTH;
+      return BREED;
+    },
+  };
+  Object.defineProperty(window, "claude", { value: { use: async (n) => (n === "sample" ? sample : null) }, configurable: true });
+})();
+"""
+
+
+def jpeg_payload(name):
+    import io
+    from PIL import Image, ImageDraw
+    im = Image.new('RGB', (1600, 1200), (196, 160, 110))
+    d = ImageDraw.Draw(im)
+    d.ellipse((450, 250, 1150, 1000), fill=(214, 168, 96))
+    buf = io.BytesIO()
+    im.save(buf, 'JPEG', quality=80)
+    return {'name': name, 'mimeType': 'image/jpeg', 'buffer': buf.getvalue()}
+
+
+def ai_flow(ctx):
+    """Demo build with a fake claude.ai runtime: breed ID, pet form fill, health check, save to care record."""
+    ctx.add_init_script(FAKE_CLAUDE)
+    page = ctx.new_page()
+    page.on('console', log_console)
+    page.on('pageerror', lambda e: errors.append(f'ai pageerror: {e}'))
+    jpg = jpeg_payload('pet.jpg')
+    NO_AI = 'Photo checks need the online version of the app'
+
+    # breed ID from Home quick action
+    page.goto(DEMO)
+    page.get_by_role('link', name='Identify breed').click()
+    expect(page.get_by_role('heading', name='Identify breed')).to_be_visible()
+    expect(page.get_by_text(NO_AI)).to_have_count(0)
+    page.get_by_label('Choose from library').set_input_files(jpg)
+    expect(page.get_by_role('img', name='Photo 1')).to_be_visible()
+    page.get_by_role('button', name='Identify breed').click()
+    expect(page.get_by_text('Thinking...')).to_be_visible()
+    expect(page.get_by_role('heading', name='Golden Retriever')).to_be_visible()
+    expect(page.get_by_text('High confidence')).to_be_visible()
+    calls = page.evaluate('window.__aiCalls')
+    assert calls[-1] == {'images': 1, 'tier': 'default', 'types': ['image/jpeg']}, calls
+    demo_shot(page, 'x-identify-results', page.get_by_text('Looks like'))
+    # cancel works and stays quiet
+    page.get_by_label('Choose from library').set_input_files(jpg)
+    page.get_by_role('button', name='Identify breed').click()
+    page.get_by_role('button', name='Cancel').click()
+    expect(page.get_by_text('Thinking...')).to_have_count(0)
+    expect(page.get_by_role('alert')).to_have_count(0)
+
+    # pet form: Identify breed from photo fills the breed field
+    page.goto(DEMO + '#/pets')
+    page.get_by_role('button', name='Add pet').click()
+    page.get_by_label('Name', exact=True).fill('Sunny')
+    page.get_by_role('button', name='Identify breed from photo').click()
+    dlg = page.get_by_role('dialog', name='Identify breed from photo')
+    dlg.get_by_label('Choose from library').set_input_files(jpg)
+    dlg.get_by_role('button', name='Identify breed').click()
+    dlg.get_by_role('button', name='Use this breed: Golden Retriever').click()
+    expect(page.get_by_label('Breed')).to_have_value('Golden Retriever')
+    expect(page.get_by_label('Name', exact=True)).to_have_value('Sunny')
+    page.get_by_role('button', name='Save pet').click()
+    page.wait_for_url(re.compile(r'#/pets/pet-'))
+    expect(page.get_by_text('Golden Retriever').first).to_be_visible()
+
+    # health check from Bailey's page, then save to care record
+    page.goto(DEMO + '#/pets/sample-pet-bailey')
+    page.get_by_role('link', name='Check with a photo').click()
+    expect(page.get_by_role('heading', name='Photo health check')).to_be_visible()
+    expect(page.get_by_role('button', name='Bailey', exact=True)).to_have_attribute('aria-pressed', 'true')
+    page.get_by_label('Choose from library').set_input_files(jpg)
+    page.get_by_role('button', name='Itching or scratching').click()
+    page.get_by_role('button', name='Check this photo').click()
+    expect(page.get_by_text('Thinking...')).to_be_visible()
+    expect(page.get_by_text('Worth a vet call soon')).to_be_visible()
+    expect(page.get_by_role('heading', name='Flea allergy dermatitis')).to_be_visible()
+    page.get_by_role('checkbox', name='Run a flea comb near the tail base').click()
+    expect(page.get_by_role('checkbox', name='Run a flea comb near the tail base')).to_have_attribute('aria-checked', 'true')
+    expect(page.get_by_text('ASPCA Animal Poison Control Center', exact=False)).to_be_visible()
+    demo_shot(page, 'x-health-results', page.locator('.urgency'))
+    expect(page.get_by_label('Follow-up date')).to_be_visible()
+    page.get_by_role('button', name='Save to care record').click()
+    expect(page.get_by_text(re.compile("Saved to Bailey's care record, follow up"))).to_be_visible()
+    page.get_by_role('link', name='Open Bailey').click()
+    due = page.locator('.due-card')
+    expect(due.get_by_text('Photo health check')).to_be_visible()
+    page.goto(DEMO + '#/')
+    expect(page.get_by_text('Photo health check').first).to_be_visible()
+
+    # breeds recommender shot
+    page.goto(DEMO + '#/breeds/match')
+    page.get_by_role('radiogroup', name='Looking for').get_by_role('radio', name='Dog').click()
+    page.get_by_role('radiogroup', name='Kids at home').get_by_role('radio', name='Yes').click()
+    page.get_by_role('radiogroup', name='Your activity level').get_by_role('radio', name='Very active').click()
+    expect(page.locator('.match-list > li')).to_have_count(5)
+    demo_shot(page, 'x-breeds-match', page.locator('#matches'))
+    page.goto(DEMO + '#/breeds/golden-retriever')
+    expect(page.get_by_role('heading', name='Your pets of this breed')).to_be_visible()
+    demo_shot(page, 'x-breed-detail')
+    page.close()
+
+
 def demo_page(ctx):
     """Demo build: household members, sample feedings, switch plan, spending shots."""
     page = ctx.new_page()
@@ -414,8 +534,55 @@ with sync_playwright() as p:
     page.wait_for_url(re.compile(r'#/boxes$'))
     expect(page.get_by_text('Coming soon.').first).to_be_visible()
 
+    # SET B without AI: calm disabled note on photo screens, breed guide and recommender
+    NO_AI = 'Photo checks need the online version of the app. Everything else works offline.'
+    page.goto(URL + '#/more')
+    page.get_by_role('link', name=re.compile('Identify breed')).click()
+    expect(page.get_by_text(NO_AI)).to_be_visible()
+    assert page.get_by_role('button', name='Identify breed').is_disabled()
+    expect(page.get_by_text(re.compile('DNA test is the only sure way')).first).to_be_visible()
+    page.goto(URL + '#/care')
+    page.get_by_role('link', name='Check with a photo').click()
+    expect(page.get_by_text(NO_AI)).to_be_visible()
+    assert page.get_by_role('button', name='Check this photo').is_disabled()
+    expect(page.get_by_text('This is a photo check, not a diagnosis. When in doubt, call your vet.')).to_be_visible()
+    page.goto(URL + '#/pets/sample-pet-bailey')
+    page.get_by_role('link', name='Check with a photo').click()
+    expect(page.get_by_role('heading', name='Photo health check')).to_be_visible()
+    expect(page.get_by_role('button', name='Bailey', exact=True)).to_have_attribute('aria-pressed', 'true')
+    expect(page.get_by_role('button', name='Bloated belly or retching')).to_be_visible()
+    page.goto(URL + '#/pets')
+    page.get_by_role('button', name='Add pet').click()
+    page.get_by_role('button', name='Identify breed from photo').click()
+    expect(page.get_by_role('dialog', name='Identify breed from photo').get_by_text(NO_AI)).to_be_visible()
+    page.keyboard.press('Escape')
+    page.goto(URL + '#/breeds')
+    expect(page.get_by_role('tab', name=re.compile(r'Dogs \(\d+\)'))).to_be_visible()
+    page.get_by_label('Search breeds').fill('golden')
+    page.get_by_role('link', name=re.compile('Golden Retriever')).click()
+    expect(page.get_by_role('heading', name='Golden Retriever')).to_be_visible()
+    expect(page.get_by_role('img', name='Energy: High')).to_be_visible()
+    expect(page.get_by_text('Hip and elbow dysplasia')).to_be_visible()
+    expect(page.locator('.card', has=page.get_by_role('heading', name='Your pets of this breed')).get_by_role('link', name=re.compile('Bailey'))).to_be_visible()
+    page.goto(URL + '#/breeds')
+    page.get_by_role('tab', name=re.compile('Cats')).click()
+    page.get_by_role('group', name='Filter breeds').get_by_role('button', name='Low shedding').click()
+    expect(page.get_by_role('link', name=re.compile('Sphynx'))).to_be_visible()
+    assert page.get_by_role('link', name=re.compile('Maine Coon')).count() == 0
+    page.get_by_role('link', name='Find your match').first.click()
+    page.get_by_role('radiogroup', name='Looking for').get_by_role('radio', name='Dog').click()
+    page.get_by_role('radiogroup', name='Home').get_by_role('radio', name='Apartment').click()
+    page.get_by_role('radiogroup', name='Your activity level').get_by_role('radio', name='Relaxed').click()
+    page.get_by_role('radiogroup', name='Kids at home').get_by_role('radio', name='Yes').click()
+    page.get_by_role('radiogroup', name='Allergies (prefer low shedding)').get_by_role('radio', name='Yes').click()
+    expect(page.locator('.match-list > li')).to_have_count(5)
+    expect(page.get_by_text('Low shedding, which some people with allergies find easier').first).to_be_visible()
+    expect(page.get_by_text('Shelters and rescues have every breed and mixes; adoption is a great place to start.')).to_be_visible()
+    page.locator('.match-list > li').first.get_by_role('link').click()
+    expect(page.get_by_role('heading', name='At a glance')).to_be_visible()
+
     # other routes
-    for r in ['#/care', '#/shop', '#/spending', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
+    for r in ['#/care', '#/shop', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/nope', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
         page.goto(URL + r)
         page.wait_for_timeout(150)
         page.screenshot(path=f'{SHOTS}/route-{r.strip("#/").replace("/", "_") or "home"}.png')
@@ -474,7 +641,7 @@ with sync_playwright() as p:
 
     # 360 width check: no horizontal scroll
     page.set_viewport_size({'width': 360, 'height': 780})
-    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending']:
+    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/golden-retriever']:
         page.goto(URL + r); page.wait_for_timeout(120)
         sw = page.evaluate('document.documentElement.scrollWidth')
         if sw > 360: errors.append(f'horizontal overflow {sw}px on {r}')
@@ -503,6 +670,8 @@ with sync_playwright() as p:
     dh, DEMO = serve(os.path.join(ROOT, 'dist-demo')); SERVERS.append(dh)
     demo = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True, has_touch=True)
     demo_page(demo)
+    ai = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True, has_touch=True)
+    ai_flow(ai)
     b.close()
 
 ignore = ('fonts.googleapis', 'fonts.gstatic', 'ERR_TUNNEL', 'ERR_CONNECTION', 'net::', 'Failed to load resource')

@@ -44,7 +44,11 @@ export function PetsPage() {
           })}
         </ul>
       )}
-      <p className="small"><Link to="/care" className="text-link">See care schedule for all pets</Link></p>
+      <div className="pet-tools" style={{ marginTop: 4 }}>
+        <Link to="/care" className="btn btn-secondary"><Icon name="syringe" size={20} /><span>Care schedule</span></Link>
+        <Link to="/identify" className="btn btn-secondary"><Icon name="search" size={20} /><span>Identify a breed</span></Link>
+        <Link to="/breeds" className="btn btn-secondary"><Icon name="paw" size={20} /><span>Breed guide</span></Link>
+      </div>
       {adding && <PetFormSheet open onClose={close} onSaved={(p) => navigate(`/pets/${p.id}`, true)} />}
     </div>
   );
@@ -94,6 +98,11 @@ export function PetDetailPage({ petId }: { petId: string }) {
           {pet.allergies.length > 0 && <p className="allergy"><Icon name="alert" size={16} /> Allergies: {pet.allergies.join(', ')}</p>}
         </div>
       </Card>
+
+      <div className="pet-tools">
+        <Link to={`/health-check?pet=${pet.id}`} className="btn btn-secondary"><Icon name="camera" size={20} /><span>Check with a photo</span></Link>
+        {(pet.species === 'dog' || pet.species === 'cat') && <Link to={`/identify?pet=${pet.id}`} className="btn btn-ghost"><Icon name="search" size={20} /><span>Identify breed</span></Link>}
+      </div>
 
       <FoodCard pet={pet} />
 
