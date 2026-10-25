@@ -243,14 +243,28 @@ with sync_playwright() as p:
     page.on('console', log_console)
     page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
     page.goto(URL)
+    BRAND_TAGLINE = 'Patching it all together for pet parents.'
+
+    def tagline_under_logo(pg, scope):
+        """The tagline is live text right below the full logo image, in spaced capitals."""
+        box = pg.locator(scope)
+        tl = box.get_by_test_id('brand-tagline')
+        expect(tl).to_have_text(BRAND_TAGLINE)
+        expect(tl).to_be_visible()
+        img = box.locator('img').bounding_box(); t = tl.bounding_box()
+        assert 0 <= t['y'] - (img['y'] + img['height']) < 24, (img, t)
+        style = tl.evaluate("e => [getComputedStyle(e).textTransform, parseFloat(getComputedStyle(e).letterSpacing)]")
+        assert style[0] == 'uppercase' and style[1] > 1, style
 
     # onboarding
+    tagline_under_logo(page, '.onboarding-hero')
     page.get_by_label('Household name').fill('The Testers')
     page.get_by_role('button', name='Continue').click()
     page.get_by_label('Pet name').fill('Pepper')
     page.get_by_role('radio', name='Cat').click()
     page.get_by_role('button', name='Get started').click()
     expect(page.get_by_text('The Testers')).to_be_visible()
+    tagline_under_logo(page, '.home-logo')
 
     # load sample pets
     page.goto(URL + '#/pets')

@@ -1,8 +1,7 @@
-import { BRAND } from '../config/brand';
 import { useApp } from '../state';
 import { Link } from '../router';
 import { Icon } from '../ui/Icon';
-import { Badge, Button, Card, PetAvatar } from '../ui/kit';
+import { Badge, BrandLogo, Button, Card, PetAvatar } from '../ui/kit';
 import { dueSoon } from '../lib/care';
 import { formatAge, formatDay, relativeDay, today, daysBetween } from '../lib/dates';
 import { loadSamplePets, removeSamplePets } from '../data/db';
@@ -26,9 +25,7 @@ export function HomePage() {
 
   return (
     <div className="page home">
-      <div className="home-logo">
-        <img src={BRAND.fullLogoDataUri} alt={BRAND.name} width={260} height={187} />
-      </div>
+      <BrandLogo className="home-logo" width={240} />
       <section className="hero">
         <div className="hero-top">
           <div>

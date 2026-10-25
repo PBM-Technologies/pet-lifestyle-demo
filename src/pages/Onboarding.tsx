@@ -3,7 +3,7 @@ import { BRAND } from '../config/brand';
 import type { Pet, Species } from '../contracts/domain';
 import { newId, nowIso } from '../lib/dates';
 import { useApp } from '../state';
-import { Button, ChoiceGroup, TextField } from '../ui/kit';
+import { BrandLogo, Button, ChoiceGroup, TextField } from '../ui/kit';
 import { navigate } from '../router';
 
 export function Onboarding() {
@@ -40,9 +40,8 @@ export function Onboarding() {
   return (
     <div className="onboarding">
       <div className="onboarding-hero">
-        <img className="full-logo" src={BRAND.fullLogoDataUri} alt="" width={320} height={230} />
         <h1 className="sr-only">{BRAND.name}</h1>
-        <p className="sr-only">{BRAND.tagline}</p>
+        <BrandLogo className="onboarding-logo" width={320} decorative />
       </div>
       <div className="card onboarding-card">
         <p className="step-label">Step {step} of 2</p>

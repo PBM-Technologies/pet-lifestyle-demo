@@ -430,9 +430,9 @@ main:focus { outline: none; }
 .onboarding { max-width: 480px; margin: 0 auto; padding: 32px var(--gutter); }
 .onboarding-hero { text-align: center; margin-bottom: 20px; }
 .onboarding-hero img { margin: 0 auto 12px; border-radius: 20px; box-shadow: var(--shadow); }
-.onboarding-hero img.full-logo { box-shadow: none; border-radius: 16px; width: min(320px, 85vw); height: auto; background: #fdfcf8; }
+.onboarding-hero .brand-logo img { box-shadow: none; border-radius: 16px; width: min(320px, 85vw); height: auto; background: #fdfcf8; margin-bottom: 0; }
 .onboarding-hero h1 { font-size: 2.2rem; color: var(--c-primary); margin-bottom: 4px; }
-.onboarding-hero p { color: var(--c-text-muted); font-size: 1.05rem; }
+.onboarding-hero .brand-tagline { font-size: 0.8rem; }
 .onboarding-card { padding: 20px; }
 .step-label { font-size: 0.8rem; font-weight: 700; color: var(--c-accent); text-transform: uppercase; letter-spacing: 0.06em; }
 .onboarding-card .row-actions { justify-content: flex-end; }
@@ -442,9 +442,15 @@ main:focus { outline: none; }
 .demo-banner { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); background: var(--c-accent-soft); color: var(--c-text); font-size: 0.85rem; }
 .demo-banner button { min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--c-primary); background: var(--c-surface); color: var(--c-primary); font: inherit; font-weight: 700; cursor: pointer; }
 
-.home-logo { display: flex; justify-content: center; margin: 0 0 14px; }
+/* Full logo plus the tagline as text, styled like the original artwork: spaced navy capitals. */
+.brand-logo { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.brand-tagline {
+  margin: 6px 0 0; color: var(--c-primary); text-transform: uppercase; letter-spacing: 0.22em; font-weight: 700;
+  font-size: 0.72rem; line-height: 1.5; max-width: 32ch; padding-left: 0.22em;
+}
+.home-logo { margin: 0 0 14px; }
 .home-logo img { width: min(240px, 70vw); height: auto; border-radius: 18px; background: #fdfcf8; }
-@media (prefers-color-scheme: dark) { .home-logo img { padding: 8px 14px; } }
+@media (prefers-color-scheme: dark) { .home-logo img, .onboarding-hero .brand-logo img { padding: 8px 14px; } }
 
 /* ---------- food and treats ---------- */
 .stepper { display: inline-flex; align-items: center; gap: 4px; border: 1.5px solid var(--c-border); border-radius: 999px; padding: 2px; background: var(--c-surface); align-self: flex-start; }

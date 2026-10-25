@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState, type ButtonHTMLAttributes, type Rea
 import { Icon, SpeciesGlyph } from './Icon';
 import type { Pet } from '../contracts/domain';
 import { back } from '../router';
+import { BRAND } from '../config/brand';
 
 export function Button({ variant = 'primary', icon, children, className = '', ...rest }: { variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'accent'; icon?: string; children?: ReactNode } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
@@ -82,6 +83,16 @@ export function PetAvatar({ pet, size = 48 }: { pet: Pick<Pet, 'name' | 'species
     <span className={`avatar avatar-${pet.species}`} style={{ width: size, height: size }}>
       {pet.photo ? <img src={pet.photo} alt="" /> : <SpeciesGlyph species={pet.species} size={Math.round(size * 0.6)} />}
     </span>
+  );
+}
+
+/** Full logo with the tagline as live text under it, so the words always match brand.ts. */
+export function BrandLogo({ className = '', width, decorative = false }: { className?: string; width: number; decorative?: boolean }) {
+  return (
+    <div className={`brand-logo ${className}`}>
+      <img src={BRAND.fullLogoDataUri} alt={decorative ? '' : BRAND.name} width={width} height={Math.round(width * 488 / 720)} />
+      <p className="brand-tagline" data-testid="brand-tagline">{BRAND.tagline}</p>
+    </div>
   );
 }
 

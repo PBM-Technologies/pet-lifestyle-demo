@@ -51,13 +51,14 @@ export const BRAND = {
   name: 'Patches',
   /** Short name for the home screen icon label. */
   shortName: 'Patches',
-  tagline: "Your pet's world, all in one place.",
+  /** Shown as real text under the full logo, so it always matches this file. */
+  tagline: 'Patching it all together for pet parents.',
   description:
     'One place for your pet\'s whole life: care records, pet-friendly places, trips, events and treat boxes. For dog and cat people alike.',
   logoSvg: LOGO_SVG,
   /** Square dog and cat mark for headers and icons. */
   logoDataUri: MARK_WEBP,
-  /** Full logo with wordmark and tagline. */
+  /** Full logo with the wordmark. The tagline is rendered as text below it (see BrandLogo). */
   fullLogoDataUri: FULL_LOGO_WEBP,
   colors: {
     light: {
