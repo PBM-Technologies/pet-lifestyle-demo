@@ -20,12 +20,14 @@ export function HomePage() {
 
   return (
     <div className="page home">
+      <div className="home-logo">
+        <img src={BRAND.fullLogoDataUri} alt={BRAND.name} width={260} height={187} />
+      </div>
       <section className="hero">
         <div className="hero-top">
           <div>
             <p className="eyebrow">{data.household?.name}</p>
             <h1>Hi there</h1>
-            <p className="hero-sub">{BRAND.tagline}</p>
           </div>
           <Link to="/notifications" className="hero-bell" aria-label={`Notifications${unread ? `, ${unread} new` : ''}`}>
             <Icon name="bell" />
