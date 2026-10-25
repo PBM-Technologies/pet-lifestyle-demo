@@ -80,4 +80,29 @@ Independent, brand-neutral consumer product. Health Extension and SnugArooz are 
 Keep user data, branding, billing, analytics and administrator roles isolated between the two applications. Reuse code packages only, never silently share consumer data.
 
 ## Status
-Architecture and interface contracts specified; production implementation, testing and deployment are still pending. The existing root `index.html` remains a prototype.
+Phase 1 (local-first web app) is implemented: Vite + React 18 + TypeScript (strict), hash routing, single-file build, deployable to GitHub Pages. The working product name and partner list live only in `src/config/brand.ts`. The phase 1 stack replaces Next.js for now so the app runs from any static host or a single file; the domain contracts and repository interface are built to carry over.
+
+Implemented
+- Every route in the inventory above, as hash routes, plus `/more` and `/notifications`.
+- Households and pets: local onboarding (no passwords), pet profiles with compressed photos, allergies, microchip and vet details.
+- Care records: vaccines, meds, flea/tick, heartworm, vet visits, grooming, weight history chart, journal, documents; due-soon and overdue logic, repeating items.
+- Places: fictional sample listings (labeled) plus user-added places with pet policy fields, search, category and species filters, favorites, private notes and ratings. Verification shows only when the user marks it.
+- Trips: dates, pets coming, stops from saved places or free text, species-aware packing checklist, travel reminders.
+- Community and events: local event creation with RSVP, labeled sample events, private pet photo feed.
+- Mystery boxes: builder with restrictions filled in from allergies, saved plans, checkout disabled.
+- Partners: brand.ts-driven partner section linking out only.
+- Notifications: derived in-app center with dismiss.
+- Account: export JSON, export care CSV, import with validation, delete all.
+- Persistence behind `Repository<T>` with a localStorage adapter and in-memory fallback.
+- `database/0002_pets.sql` with household-scoped tables for all domains.
+- Vitest unit tests (data layer and logic), Playwright phone click-through script, GitHub Pages workflow.
+
+Remaining
+- Real auth (managed provider, verified identity, household roles and invites).
+- Backend: versioned API, server-side authorization against `household_members`, audit logging, a Postgres or Firebase repository adapter, private object storage for photos and documents.
+- A real places data provider and a verified-policy workflow (sources, moderation, freshness).
+- Community sharing: follows, visibility, moderation, reporting.
+- Commerce: billing provider, subscriptions, orders, fulfillment, returns, support; partner integrations beyond links.
+- Push notifications and scheduled reminder jobs.
+- Privacy and security review, analytics with consent, real-device and accessibility audit, visual design approval.
+- Final product name.
