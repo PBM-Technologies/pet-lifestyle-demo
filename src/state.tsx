@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { BoxPlan, CareEvent, CommunityPost, Household, Pet, PetDocument, PetEvent, PlaceListing, SavedPlace, TripPlan } from './contracts/domain';
+import type { BoxPlan, CareEvent, CommunityPost, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace, TripPlan } from './contracts/domain';
 import { createDb, ensureSeeded, type Db } from './data/db';
 import { createLocalStorageStore } from './data/storage';
 import { DEMO_STORAGE_PREFIX, IS_DEMO, seedDemo } from './data/demo';
@@ -15,6 +15,7 @@ export interface Snapshot {
   events: PetEvent[];
   posts: CommunityPost[];
   boxPlans: BoxPlan[];
+  food: PetFoodItem[];
   dismissed: Set<string>;
 }
 
@@ -31,18 +32,18 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null);
 
 const EMPTY: Snapshot = {
-  household: null, pets: [], care: [], documents: [], places: [], saved: [], trips: [], events: [], posts: [], boxPlans: [], dismissed: new Set(),
+  household: null, pets: [], care: [], documents: [], places: [], saved: [], trips: [], events: [], posts: [], boxPlans: [], food: [], dismissed: new Set(),
 };
 
 async function loadSnapshot(db: Db): Promise<Snapshot> {
-  const [households, pets, care, documents, places, saved, trips, events, posts, boxPlans, dismissed] = await Promise.all([
+  const [households, pets, care, documents, places, saved, trips, events, posts, boxPlans, food, dismissed] = await Promise.all([
     db.households.list(), db.pets.list(), db.careEvents.list(), db.documents.list(), db.places.list(), db.savedPlaces.list(),
-    db.trips.list(), db.events.list(), db.posts.list(), db.boxPlans.list(), db.dismissed.list(),
+    db.trips.list(), db.events.list(), db.posts.list(), db.boxPlans.list(), db.petFood.list(), db.dismissed.list(),
   ]);
   return {
     household: households[0] ?? null,
     pets: [...pets].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    care, documents, places, saved, trips, events, posts, boxPlans,
+    care, documents, places, saved, trips, events, posts, boxPlans, food,
     dismissed: new Set(dismissed.map((d) => d.id)),
   };
 }
@@ -75,7 +76,7 @@ export function AppProvider({ children, db: injected }: { children: ReactNode; d
       }
       if (alive) await reload();
     })();
-    const repos = [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.dismissed];
+    const repos = [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood, db.dismissed];
     let queued = false;
     const onChange = () => {
       if (queued) return;

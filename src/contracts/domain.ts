@@ -175,7 +175,52 @@ export interface BoxPlan extends AuditFields, MysteryBoxPreference {
   status: 'draft' | 'saved';
 }
 
-export type NotificationKind = 'care_due' | 'care_overdue' | 'trip_upcoming' | 'event_upcoming';
+export type FoodKind = 'food' | 'treat';
+/** Unit the package is sold in. */
+export type PackageUnit = 'lb' | 'kg' | 'oz' | 'g' | 'cans' | 'pouches' | 'count';
+/** Unit one serving is measured in. */
+export type PortionUnit = 'cups' | 'g' | 'oz' | 'cans' | 'pouches' | 'pieces';
+
+export interface FoodPurchase {
+  /** YYYY-MM-DD */
+  date: string;
+  size: number;
+  unit: PackageUnit;
+  /** Only ever entered by the user. The app never supplies prices. */
+  price?: number;
+}
+
+/** A food or treat one pet eats, with what is needed to estimate how much is left. */
+export interface PetFoodItem extends AuditFields {
+  householdId: ID;
+  petId: ID;
+  kind: FoodKind;
+  brand: string;
+  product: string;
+  flavor?: string;
+  /** Mostly used for treats. */
+  favorite: boolean;
+  /** Size of the current bag, box or case. Optional for untracked treats. */
+  packageSize?: number;
+  packageUnit?: PackageUnit;
+  /** Date the current package was bought (YYYY-MM-DD). */
+  purchasedOn?: string;
+  portionAmount?: number;
+  portionUnit?: PortionUnit;
+  timesPerDay?: number;
+  /** Cups of kibble per pound, from the bag's feeding chart. Defaults to 4. */
+  cupsPerLb?: number;
+  /** Days before running out to start nudging. Defaults to 7. */
+  reorderLeadDays?: number;
+  notes?: string;
+  whereBought?: string;
+  /** Purchase history, oldest first. The last entry is the current package. */
+  purchases: FoodPurchase[];
+  active: boolean;
+  isSample?: boolean;
+}
+
+export type NotificationKind = 'care_due' | 'care_overdue' | 'trip_upcoming' | 'event_upcoming' | 'food_low';
 
 export interface AppNotification {
   id: ID;
@@ -202,5 +247,7 @@ export interface ExportBundle {
   events: PetEvent[];
   posts: CommunityPost[];
   boxPlans: BoxPlan[];
+  /** Added later; older exports may not have it. */
+  petFood?: PetFoodItem[];
   dismissedNotifications: ID[];
 }

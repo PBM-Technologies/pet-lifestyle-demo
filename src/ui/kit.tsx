@@ -398,3 +398,18 @@ export function downloadFile(name: string, content: string, type: string): void 
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/** Tap-friendly number stepper with 44px minus and plus buttons. */
+export function Stepper({ label, value, min, max, onChange, format }: { label: string; value: number; min: number; max: number; onChange: (v: number) => void; format?: (v: number) => string }) {
+  const id = useId();
+  return (
+    <div className="field">
+      <span className="label" id={id}>{label}</span>
+      <div className="stepper" role="group" aria-labelledby={id}>
+        <button type="button" className="stepper-btn" aria-label={`Fewer: ${label}`} disabled={value <= min} onClick={() => onChange(Math.max(min, value - 1))}><span aria-hidden="true">-</span></button>
+        <output className="stepper-value" aria-live="polite">{format ? format(value) : value}</output>
+        <button type="button" className="stepper-btn" aria-label={`More: ${label}`} disabled={value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Icon name="plus" size={20} /></button>
+      </div>
+    </div>
+  );
+}

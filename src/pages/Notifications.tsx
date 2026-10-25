@@ -3,20 +3,20 @@ import { buildNotifications } from '../lib/notifications';
 import { Button, EmptyState, PageHeader } from '../ui/kit';
 import { Icon } from '../ui/Icon';
 
-const ICON = { care_due: 'syringe', care_overdue: 'alert', trip_upcoming: 'suitcase', event_upcoming: 'calendar' } as const;
+const ICON = { care_due: 'syringe', care_overdue: 'alert', trip_upcoming: 'suitcase', event_upcoming: 'calendar', food_low: 'bag' } as const;
 
 export function NotificationsPage() {
   const { data, db, toast } = useApp();
-  const all = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events });
+  const all = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events, food: data.food });
   const active = all.filter((n) => !data.dismissed.has(n.id));
   const dismissed = all.length - active.length;
   return (
     <div className="page">
-      <PageHeader title="Notifications" subtitle="Care due soon, trips and events" backTo="/"
+      <PageHeader title="Notifications" subtitle="Care, food, trips and events" backTo="/"
         actions={active.length > 0 ? <Button variant="secondary" onClick={async () => { for (const n of active) await db.dismissed.upsert({ id: n.id }); toast('All cleared'); }}>Clear all</Button> : undefined} />
       <p className="muted small">In-app only for now. Phone push reminders come later.</p>
       {active.length === 0 ? (
-        <EmptyState icon="bell" title="You are all caught up">Vaccines and meds due within 30 days, trips in the next 2 weeks and events this week show up here.</EmptyState>
+        <EmptyState icon="bell" title="You are all caught up">Vaccines and meds due within 30 days, food running low, trips in the next 2 weeks and events this week show up here.</EmptyState>
       ) : (
         <ul className="notif-list">
           {active.map((n) => (

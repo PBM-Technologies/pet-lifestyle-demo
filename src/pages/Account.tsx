@@ -3,7 +3,7 @@ import { BRAND } from '../config/brand';
 import { useApp } from '../state';
 import { Link, navigate } from '../router';
 import { Button, Card, Confirm, PageHeader, PetAvatar, TextField, downloadFile } from '../ui/kit';
-import { careEventsCsv, deleteAll, ensureSeeded, exportAll, importAll, ImportError, loadSamplePets, removeSamplePets } from '../data/db';
+import { careEventsCsv, deleteAll, petFoodCsv, ensureSeeded, exportAll, importAll, ImportError, loadSamplePets, removeSamplePets } from '../data/db';
 import { nowIso, today } from '../lib/dates';
 import { Icon } from '../ui/Icon';
 
@@ -42,10 +42,11 @@ export function AccountPage() {
       </Card>
       <Card>
         <h2>Your data</h2>
-        <p className="muted small">Download a copy any time. JSON includes everything; CSV has care records for your vet or a spreadsheet.</p>
+        <p className="muted small">Download a copy any time. JSON includes everything. CSV files of care records and of food and treats work for your vet or a spreadsheet.</p>
         <div className="stack">
           <Button variant="secondary" icon="download" onClick={async () => { const b = await exportAll(db, BRAND.name); downloadFile(`${slug}-export-${today()}.json`, JSON.stringify(b, null, 2), 'application/json'); toast('Export downloaded'); }}>Export all data (JSON)</Button>
           <Button variant="secondary" icon="download" onClick={() => { downloadFile(`${slug}-care-records-${today()}.csv`, careEventsCsv(data.care, data.pets), 'text/csv'); toast('CSV downloaded'); }}>Export care records (CSV)</Button>
+          <Button variant="secondary" icon="download" onClick={() => { downloadFile(`${slug}-food-and-treats-${today()}.csv`, petFoodCsv(data.food, data.pets), 'text/csv'); toast('CSV downloaded'); }}>Export food and treats (CSV)</Button>
           <Button variant="secondary" icon="upload" onClick={() => fileRef.current?.click()}>Import from JSON</Button>
           <input ref={fileRef} type="file" accept="application/json,.json" className="visually-hidden" aria-label="Choose export file to import"
             onChange={async (e) => {
@@ -60,7 +61,7 @@ export function AccountPage() {
       </Card>
       <Card className="danger-zone">
         <h2>Delete all data</h2>
-        <p className="muted small">Removes your household, pets, records, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
+        <p className="muted small">Removes your household, pets, records, food and treats, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
         <Button variant="danger" icon="trash" onClick={() => setConfirmDelete(true)}>Delete everything</Button>
       </Card>
       <Confirm open={!!confirmImport} title="Replace your data?" confirmLabel="Import" body="Importing replaces everything currently on this device with the file's contents." onCancel={() => setConfirmImport(null)}

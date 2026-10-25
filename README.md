@@ -40,11 +40,12 @@ src/data/storage.ts        localStorage adapter with try/catch and in-memory fal
 src/data/repository.ts     Repository<T> interface (list/get/upsert/remove) + KV implementation
 src/data/db.ts             per-domain repositories, seeding, export/import/delete, CSV
 src/data/samples.ts        clearly labeled fictional sample places, events and pets
-src/lib/*                  pure logic: dates/age, care due-soon, packing, boxes, places, notifications
+src/lib/*                  pure logic: dates/age, care due-soon, food estimates, packing, boxes, places, notifications
 src/pages/*                screens for every route
 src/ui/*                   design system: buttons, sheets, tap-friendly pickers, icons, chart
 database/0001_identity.sql users, households, membership, notifications
 database/0002_pets.sql     household-scoped tables for every app domain
+database/0003_pet_food.sql food and treats per pet, with purchase history
 demo/index.html            the original one-page concept demo (kept for reference)
 ```
 

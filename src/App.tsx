@@ -82,7 +82,7 @@ export function App() {
     main?.focus({ preventScroll: true });
   }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events }).filter((n) => !data.dismissed.has(n.id)).length;
+  const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events, food: data.food }).filter((n) => !data.dismissed.has(n.id)).length;
 
   if (status === 'loading') return <div className="app"><main id="main" tabIndex={-1}><Loading label={`Opening ${BRAND.name}`} /></main></div>;
   if (status === 'error') return <div className="app"><main id="main" tabIndex={-1} className="page"><ErrorState message={error ?? 'Something went wrong.'} onRetry={reload} /></main></div>;

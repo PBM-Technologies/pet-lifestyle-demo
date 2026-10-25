@@ -1,5 +1,6 @@
-import type { CareEvent, PetEvent, Pet, PlaceListing } from '../contracts/domain';
+import type { CareEvent, PetEvent, Pet, PetFoodItem, PlaceListing } from '../contracts/domain';
 import { addDays, addYears, today } from '../lib/dates';
+import { BRAND } from '../config/brand';
 
 /**
  * Fictional sample content. Every record is flagged isSample and labeled in
@@ -79,7 +80,7 @@ export function sampleEvents(base: string = today()): PetEvent[] {
 
 export const SAMPLE_PET_IDS = { bailey: 'sample-pet-bailey', luna: 'sample-pet-luna' };
 
-export function samplePets(householdId: string, base: string = today()): { pets: Pet[]; care: CareEvent[] } {
+export function samplePets(householdId: string, base: string = today()): { pets: Pet[]; care: CareEvent[]; food: PetFoodItem[] } {
   const now = new Date().toISOString();
   const bailey: Pet = {
     id: SAMPLE_PET_IDS.bailey,
@@ -139,5 +140,30 @@ export function samplePets(householdId: string, base: string = today()): { pets:
     c('l-w1', luna.id, 'weight', 'Weight', -200, undefined, { value: 8.9 }),
     c('l-w2', luna.id, 'weight', 'Weight', -30, undefined, { value: 9.5 }),
   ];
-  return { pets: [bailey, luna], care };
+  // Food and treats. Brand names other than the partner are fictional and
+  // product names are generic placeholders; nothing here is a real listing.
+  // Bailey: 2 cups twice a day at 4 cups per lb is 1 lb a day, so a 24 lb bag
+  // lasts about 24 days. Bought 19 days ago, it lands at "reorder soon".
+  const f = (id: string, petId: string, o: Omit<PetFoodItem, 'id' | 'householdId' | 'petId' | 'createdAt' | 'updatedAt' | 'isSample' | 'active'>): PetFoodItem => ({
+    id: 'sample-food-' + id, householdId, petId, active: true, isSample: true, createdAt: now, updatedAt: now, ...o,
+  });
+  const food: PetFoodItem[] = [
+    f('b-food', bailey.id, {
+      kind: 'food', brand: BRAND.partners.find((x) => x.category === 'food_and_treats')?.name ?? 'Sample Pet Foods', product: 'Dry dog food (sample)', favorite: false,
+      packageSize: 24, packageUnit: 'lb', purchasedOn: addDays(base, -19), portionAmount: 2, portionUnit: 'cups', timesPerDay: 2, cupsPerLb: 4, reorderLeadDays: 7,
+      purchases: [{ date: addDays(base, -43), size: 24, unit: 'lb' }, { date: addDays(base, -19), size: 24, unit: 'lb' }],
+    }),
+    f('b-bites', bailey.id, {
+      kind: 'treat', brand: 'Sample Treat Co', product: 'Salmon training bites (sample)', favorite: true,
+      packageSize: 100, packageUnit: 'count', purchasedOn: addDays(base, -10), portionAmount: 5, portionUnit: 'pieces', timesPerDay: 1,
+      purchases: [{ date: addDays(base, -10), size: 100, unit: 'count' }],
+    }),
+    f('b-biscuits', bailey.id, { kind: 'treat', brand: 'Sample Treat Co', product: 'Peanut butter biscuits (sample)', favorite: true, purchases: [] }),
+    f('l-food', luna.id, {
+      kind: 'food', brand: 'Sample Cat Kitchen', product: 'Pate cans (sample)', favorite: false,
+      packageSize: 24, packageUnit: 'cans', purchasedOn: addDays(base, -9), portionAmount: 1, portionUnit: 'cans', timesPerDay: 2, reorderLeadDays: 7,
+      purchases: [{ date: addDays(base, -9), size: 24, unit: 'cans' }],
+    }),
+  ];
+  return { pets: [bailey, luna], care, food };
 }

@@ -7,6 +7,7 @@ import { dueSoon } from '../lib/care';
 import { formatAge, formatDay, relativeDay, today, daysBetween } from '../lib/dates';
 import { loadSamplePets, removeSamplePets } from '../data/db';
 import { buildNotifications } from '../lib/notifications';
+import { FOOD_STATUS_LABEL, foodAlerts, runOutSentence, shortDay } from '../lib/food';
 
 export function HomePage() {
   const { data, db, toast } = useApp();
@@ -16,7 +17,9 @@ export function HomePage() {
   const nextEvent = [...data.events].filter((e) => e.date >= t && (!e.isSample || e.rsvp === 'going')).sort((a, b) => a.date.localeCompare(b.date))[0];
   const favCount = data.saved.filter((s) => s.favorite).length;
   const hasSamplePets = data.pets.some((p) => p.isSample);
-  const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events }).filter((n) => !data.dismissed.has(n.id)).length;
+  const petById = new Map(data.pets.map((p) => [p.id, p]));
+  const lowFood = foodAlerts(data.food).filter((a) => petById.has(a.item.petId)).slice(0, 4);
+  const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events, food: data.food }).filter((n) => !data.dismissed.has(n.id)).length;
 
   return (
     <div className="page home">
@@ -99,6 +102,31 @@ export function HomePage() {
               ))}
             </ul>
           )}
+        </Card>
+      )}
+
+      {lowFood.length > 0 && (
+        <Card>
+          <div className="section-head">
+            <div className="mini-head"><Icon name="bag" /><h2>Food</h2></div>
+          </div>
+          <ul className="list">
+            {lowFood.map(({ item, estimate }) => {
+              const pet = petById.get(item.petId)!;
+              return (
+                <li key={item.id}>
+                  <Link to={`/pets/${pet.id}`} className="list-row">
+                    <PetAvatar pet={pet} size={40} />
+                    <span className="grow">
+                      <strong>{runOutSentence(pet.name, item, estimate)}</strong>
+                      <span className="muted small block">{item.brand} · {estimate.status === 'out' ? 'time to restock' : `around ${shortDay(estimate.runOutDate)}`}</span>
+                    </span>
+                    <Badge tone={estimate.status === 'out' ? 'danger' : 'warning'}>{FOOD_STATUS_LABEL[estimate.status]}</Badge>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
         </Card>
       )}
 

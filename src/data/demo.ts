@@ -84,7 +84,7 @@ export async function seedDemo(db: Db, base: string = today()): Promise<void> {
 
 /** Wipes demo storage and loads the demo again. */
 export async function resetDemo(db: Db): Promise<void> {
-  const repos = [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.dismissed];
+  const repos = [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood, db.dismissed];
   for (const r of repos) await r.replaceAll([]);
   db.store.removeItem('meta:seeded');
   await seedDemo(db);

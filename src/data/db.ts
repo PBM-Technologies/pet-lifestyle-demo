@@ -1,5 +1,5 @@
 import type {
-  BoxPlan, CareEvent, CommunityPost, ExportBundle, Household, Pet, PetDocument, PetEvent, PlaceListing, SavedPlace, TripPlan,
+  BoxPlan, CareEvent, CommunityPost, ExportBundle, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace, TripPlan,
 } from '../contracts/domain';
 import { createKvRepository, type Repository } from './repository';
 import { createLocalStorageStore, type KeyValueStore } from './storage';
@@ -20,6 +20,7 @@ export interface Db {
   events: Repository<PetEvent>;
   posts: Repository<CommunityPost>;
   boxPlans: Repository<BoxPlan>;
+  petFood: Repository<PetFoodItem>;
   dismissed: Repository<Dismissed>;
 }
 
@@ -39,6 +40,7 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
     events: r('events'),
     posts: r('community_posts'),
     boxPlans: r('box_plans'),
+    petFood: r('pet_food'),
     dismissed: r('dismissed_notifications'),
   };
 }
@@ -58,15 +60,17 @@ export async function getHousehold(db: Db): Promise<Household | undefined> {
 }
 
 export async function loadSamplePets(db: Db, householdId: string): Promise<void> {
-  const { pets, care } = samplePets(householdId);
+  const { pets, care, food } = samplePets(householdId);
   for (const p of pets) await db.pets.upsert(p);
   for (const c of care) await db.careEvents.upsert(c);
+  for (const f of food) await db.petFood.upsert(f);
 }
 
 export async function removeSamplePets(db: Db): Promise<void> {
   const pets = await db.pets.list((p) => !!p.isSample);
   const ids = new Set(pets.map((p) => p.id));
   for (const p of pets) await removePet(db, p.id);
+  await db.petFood.replaceAll(await db.petFood.list((f) => !f.isSample));
   // detach sample pets from trips, events, posts, box plans
   const trips = await db.trips.list();
   for (const t of trips) if (t.petIds.some((id) => ids.has(id))) await db.trips.upsert({ ...t, petIds: t.petIds.filter((id) => !ids.has(id)), packing: t.packing.filter((i) => !i.petId || !ids.has(i.petId)) });
@@ -78,6 +82,7 @@ export async function removePet(db: Db, petId: string): Promise<void> {
   await db.careEvents.replaceAll(await db.careEvents.list((c) => c.petId !== petId));
   await db.documents.replaceAll(await db.documents.list((d) => d.petId !== petId));
   await db.boxPlans.replaceAll(await db.boxPlans.list((b) => b.petId !== petId));
+  await db.petFood.replaceAll(await db.petFood.list((f) => f.petId !== petId));
   const events = await db.events.list();
   for (const e of events) if (e.petIds.includes(petId)) await db.events.upsert({ ...e, petIds: e.petIds.filter((x) => x !== petId) });
   const posts = await db.posts.list();
@@ -104,6 +109,7 @@ export async function exportAll(db: Db, appName: string): Promise<ExportBundle> 
     events: await db.events.list(),
     posts: await db.posts.list(),
     boxPlans: await db.boxPlans.list(),
+    petFood: await db.petFood.list(),
     dismissedNotifications: (await db.dismissed.list()).map((d) => d.id),
   };
 }
@@ -132,6 +138,7 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
     events: arr(b.events, 'events'),
     posts: arr(b.posts, 'posts'),
     boxPlans: arr(b.boxPlans, 'boxPlans'),
+    petFood: arr(b.petFood, 'petFood'),
   };
   for (const [k, v] of Object.entries(lists)) if (!v.every(hasId)) throw new ImportError(`Some "${k}" records are missing an id.`);
   const pets = (lists.pets as Pet[]).map((p) => ({ ...p, allergies: Array.isArray(p.allergies) ? p.allergies : [] }));
@@ -146,13 +153,14 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
   await db.events.replaceAll((lists.events as PetEvent[]).map((e) => ({ ...e, petIds: e.petIds ?? [] })));
   await db.posts.replaceAll(lists.posts as CommunityPost[]);
   await db.boxPlans.replaceAll(lists.boxPlans as BoxPlan[]);
+  await db.petFood.replaceAll((lists.petFood as PetFoodItem[]).map((f) => ({ ...f, purchases: Array.isArray(f.purchases) ? f.purchases : [], favorite: !!f.favorite, active: f.active !== false })));
   await db.dismissed.replaceAll((Array.isArray(b.dismissedNotifications) ? b.dismissedNotifications : []).filter((x): x is string => typeof x === 'string').map((id) => ({ id })));
   db.store.setItem('meta:seeded', '1');
   return { pets: pets.length, places: lists.places.length, trips: lists.trips.length };
 }
 
 export async function deleteAll(db: Db): Promise<void> {
-  for (const repo of [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.dismissed]) {
+  for (const repo of [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood, db.dismissed]) {
     await repo.replaceAll([]);
   }
   db.store.removeItem('meta:seeded');
@@ -169,5 +177,18 @@ export function careEventsCsv(events: CareEvent[], pets: Pet[]): string {
   const rows = [...events]
     .sort((a, b) => a.date.localeCompare(b.date))
     .map((e) => [names.get(e.petId) ?? e.petId, e.type, e.title, e.date, e.dueDate, e.repeatDays, e.value, e.completedAt, e.notes].map(csvCell).join(','));
+  return [header.join(','), ...rows].join('\n');
+}
+
+export function petFoodCsv(items: PetFoodItem[], pets: Pet[]): string {
+  const names = new Map(pets.map((p) => [p.id, p.name]));
+  const header = ['pet', 'kind', 'brand', 'product', 'flavor', 'favorite', 'package_size', 'package_unit', 'purchased_on', 'portion', 'portion_unit', 'times_per_day', 'cups_per_lb', 'reorder_lead_days', 'where_bought', 'purchases', 'active', 'notes'];
+  const rows = [...items]
+    .sort((a, b) => (names.get(a.petId) ?? '').localeCompare(names.get(b.petId) ?? '') || a.kind.localeCompare(b.kind))
+    .map((f) => [
+      names.get(f.petId) ?? f.petId, f.kind, f.brand, f.product, f.flavor, f.favorite ? 'yes' : 'no', f.packageSize, f.packageUnit, f.purchasedOn,
+      f.portionAmount, f.portionUnit, f.timesPerDay, f.cupsPerLb, f.reorderLeadDays, f.whereBought, f.purchases.map((p) => `${p.date} ${p.size} ${p.unit}`).join('; '),
+      f.active ? 'yes' : 'no', f.notes,
+    ].map(csvCell).join(','));
   return [header.join(','), ...rows].join('\n');
 }

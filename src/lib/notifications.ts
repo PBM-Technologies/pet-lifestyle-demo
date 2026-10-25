@@ -1,12 +1,13 @@
-import type { AppNotification, CareEvent, Pet, PetEvent, TripPlan } from '../contracts/domain';
+import type { AppNotification, CareEvent, Pet, PetEvent, PetFoodItem, TripPlan } from '../contracts/domain';
 import { dueSoon } from './care';
+import { foodAlerts, runOutSentence, shortDay } from './food';
 import { daysBetween, formatDay, relativeDay, today } from './dates';
 
 export const TRIP_WINDOW_DAYS = 14;
 export const EVENT_WINDOW_DAYS = 7;
 
 /** Derived in-app notifications. Dismissal is stored by id. */
-export function buildNotifications(input: { pets: Pet[]; care: CareEvent[]; trips: TripPlan[]; events: PetEvent[] }, on: string = today()): AppNotification[] {
+export function buildNotifications(input: { pets: Pet[]; care: CareEvent[]; trips: TripPlan[]; events: PetEvent[]; food?: PetFoodItem[] }, on: string = today()): AppNotification[] {
   const out: AppNotification[] = [];
   for (const d of dueSoon(input.care, input.pets, on)) {
     const name = d.pet?.name ?? 'Your pet';
@@ -48,6 +49,19 @@ export function buildNotifications(input: { pets: Pet[]; care: CareEvent[]; trip
         severity: 'info',
       });
     }
+  }
+  const names = new Map(input.pets.map((p) => [p.id, p.name]));
+  for (const { item, estimate } of foodAlerts(input.food ?? [], on)) {
+    if (!names.has(item.petId)) continue;
+    out.push({
+      id: `food:${item.id}:${item.purchasedOn}`,
+      kind: 'food_low',
+      title: runOutSentence(names.get(item.petId) as string, item, estimate),
+      body: `${item.brand} ${item.product}. ${estimate.status === 'out' ? 'Time to restock.' : `Runs out around ${shortDay(estimate.runOutDate)}.`}`,
+      date: estimate.runOutDate < on ? on : estimate.runOutDate,
+      href: `#/pets/${item.petId}`,
+      severity: estimate.status === 'out' ? 'danger' : 'warning',
+    });
   }
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }

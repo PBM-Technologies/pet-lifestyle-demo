@@ -9,6 +9,7 @@ import { formatAge, formatDay, newId, nowIso, relativeDay } from '../lib/dates';
 import { loadSamplePets, removePet } from '../data/db';
 import { PetFormSheet } from './PetForm';
 import { CareFormSheet } from './CareForm';
+import { FoodCard } from './Food';
 
 const SPECIES_LABEL = { dog: 'Dog', cat: 'Cat', other: 'Pet' } as const;
 
@@ -93,6 +94,8 @@ export function PetDetailPage({ petId }: { petId: string }) {
           {pet.allergies.length > 0 && <p className="allergy"><Icon name="alert" size={16} /> Allergies: {pet.allergies.join(', ')}</p>}
         </div>
       </Card>
+
+      <FoodCard pet={pet} />
 
       <div className="seg" role="tablist" aria-label="Pet sections">
         {(['care', 'profile', 'docs'] as const).map((t) => (
@@ -224,7 +227,7 @@ export function PetDetailPage({ petId }: { petId: string }) {
       {careType && <CareFormSheet open pet={pet} initialType={careType} onClose={() => setCareType(null)} />}
       {editEvent && <CareEditSheet event={editEvent} pet={pet} onClose={() => setEditEvent(null)} />}
       {docOpen && <DocSheet pet={pet} onClose={() => setDocOpen(false)} />}
-      <Confirm open={confirmDelete} title={`Delete ${pet.name}?`} body="This removes the profile, care records, documents and box plans for this pet from this device." onCancel={() => setConfirmDelete(false)}
+      <Confirm open={confirmDelete} title={`Delete ${pet.name}?`} body="This removes the profile, care records, food and treats, documents and box plans for this pet from this device." onCancel={() => setConfirmDelete(false)}
         onConfirm={async () => { await removePet(db, pet.id); setConfirmDelete(false); toast(`${pet.name} deleted`); navigate('/pets', true); }} />
     </div>
   );
