@@ -21,6 +21,9 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
   const [microchip, setMicrochip] = useState(pet?.microchip ?? '');
   const [vetName, setVetName] = useState(pet?.vetName ?? '');
   const [vetPhone, setVetPhone] = useState(pet?.vetPhone ?? '');
+  const [activity, setActivity] = useState<NonNullable<Pet['activity']> | ''>(pet?.activity ?? '');
+  const [body, setBody] = useState<NonNullable<Pet['bodyCondition']> | ''>(pet?.bodyCondition ?? '');
+  const [neutered, setNeutered] = useState<'yes' | 'no' | ''>(pet?.neutered === true ? 'yes' : pet?.neutered === false ? 'no' : '');
   const [quirks, setQuirks] = useState(pet?.quirks ?? '');
   const [calories, setCalories] = useState(pet?.dailyCalorieTarget !== undefined ? String(pet.dailyCalorieTarget) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -56,6 +59,9 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
       vetPhone: vetPhone.trim() || undefined,
       dailyCalorieTarget: kcal,
       quirks: quirks.trim() || undefined,
+      activity: activity || undefined,
+      bodyCondition: body || undefined,
+      neutered: neutered === 'yes' ? true : neutered === 'no' ? false : undefined,
       updatedAt: now,
     } as Pet;
     try {
@@ -93,6 +99,15 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
           <TextField label="Weight" value={weight} onChange={setWeight} inputMode="decimal" error={errors.weight} />
           <ChoiceGroup<'lb' | 'kg'> label="Unit" value={unit} onChange={setUnit} columns={2} options={[{ value: 'lb', label: 'lb' }, { value: 'kg', label: 'kg' }]} />
         </div>
+        {species !== 'other' && (
+          <>
+            <ChoiceGroup<'yes' | 'no'> label="Spayed or neutered (optional)" value={neutered || null} columns={2} onChange={(v) => setNeutered(neutered === v ? '' : v)} options={[{ value: 'yes', label: 'Yes' }, { value: 'no', label: 'No' }]} />
+            <ChoiceGroup<NonNullable<Pet['activity']>> label="Activity (optional)" value={activity || null} columns={3} onChange={(v) => setActivity(activity === v ? '' : v)}
+              options={[{ value: 'low', label: 'Low', hint: 'Mostly lounging' }, { value: 'normal', label: 'Normal' }, { value: 'high', label: 'High', hint: 'Very active' }]} />
+            <ChoiceGroup<NonNullable<Pet['bodyCondition']>> label="Body shape (optional)" value={body || null} columns={3} onChange={(v) => setBody(body === v ? '' : v)}
+              options={[{ value: 'under', label: 'Thin' }, { value: 'ideal', label: 'Just right' }, { value: 'over', label: 'Heavy' }]} />
+          </>
+        )}
         <TextField label="Allergies" value={allergies} onChange={setAllergies} placeholder="Chicken, beef" hint="Separate with commas. Used to prefill box restrictions." />
         <TextField label="Diet notes" value={diet} onChange={setDiet} multiline />
         <TextField label="Daily calorie target (optional)" value={calories} onChange={setCalories} inputMode="numeric" error={errors.calories} hint={CALORIE_HELP} />

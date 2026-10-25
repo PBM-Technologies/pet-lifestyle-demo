@@ -242,6 +242,8 @@ export function Sheet({ open, title, onClose, children, footer }: { open: boolea
     if (!open) return;
     const prev = document.activeElement as HTMLElement | null;
     const t = setTimeout(() => {
+      // do not steal focus from a field the user (or a fast test) already moved into
+      if (ref.current?.contains(document.activeElement) && document.activeElement !== ref.current) return;
       const el = ref.current?.querySelector<HTMLElement>('[autofocus], input, textarea, button:not(.sheet-close)');
       (el ?? ref.current)?.focus();
     }, 30);

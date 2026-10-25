@@ -1,6 +1,6 @@
 import type {
   BoxPlan, CareEvent, CommunityPost, Expense, ExportBundle, FeedingLog, FoodSwitchPlan, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace,
-  Sitter, SitterRequest, TreatLog, TripPlan,
+  PetPlate, Sitter, SitterRequest, TreatLog, TripPlan,
 } from '../contracts/domain';
 import { createKvRepository, type Repository } from './repository';
 import { createLocalStorageStore, type KeyValueStore } from './storage';
@@ -28,6 +28,7 @@ export interface Db {
   expenses: Repository<Expense>;
   sitterRequests: Repository<SitterRequest>;
   sitters: Repository<Sitter>;
+  plates: Repository<PetPlate>;
   dismissed: Repository<Dismissed>;
 }
 
@@ -54,6 +55,7 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
     expenses: r('expenses'),
     sitterRequests: r('sitter_requests'),
     sitters: r('sitters'),
+    plates: r('pet_plates'),
     dismissed: r('dismissed_notifications'),
   };
 }
@@ -61,7 +63,7 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
 /** Every repository, for reset and delete-all. */
 export function allRepos(db: Db): Array<Repository<{ id: string }>> {
   return [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood,
-    db.feedingLogs, db.treatLogs, db.switchPlans, db.expenses, db.sitterRequests, db.sitters, db.dismissed] as unknown as Array<Repository<{ id: string }>>;
+    db.feedingLogs, db.treatLogs, db.switchPlans, db.expenses, db.sitterRequests, db.sitters, db.plates, db.dismissed] as unknown as Array<Repository<{ id: string }>>;
 }
 
 /** Adds sample places and events once (first run). User can still delete them. */
@@ -79,12 +81,13 @@ export async function getHousehold(db: Db): Promise<Household | undefined> {
 }
 
 export async function loadSamplePets(db: Db, householdId: string): Promise<void> {
-  const { pets, care, food, feedings, expenses } = samplePets(householdId);
+  const { pets, care, food, feedings, expenses, plates } = samplePets(householdId);
   for (const p of pets) await db.pets.upsert(p);
   for (const c of care) await db.careEvents.upsert(c);
   for (const f of food) await db.petFood.upsert(f);
   for (const l of feedings) await db.feedingLogs.upsert(l);
   for (const e of expenses) await db.expenses.upsert(e);
+  for (const pl of plates) await db.plates.upsert(pl);
 }
 
 export async function removeSamplePets(db: Db): Promise<void> {
@@ -98,6 +101,7 @@ export async function removeSamplePets(db: Db): Promise<void> {
   await db.expenses.replaceAll(await db.expenses.list((e) => !e.isSample));
   await db.sitterRequests.replaceAll(await db.sitterRequests.list((r) => !r.isSample));
   await db.sitters.replaceAll(await db.sitters.list((x) => !x.isSample));
+  await db.plates.replaceAll(await db.plates.list((x) => !x.isSample));
   // detach sample pets from trips, events, posts, box plans
   const trips = await db.trips.list();
   for (const t of trips) if (t.petIds.some((id) => ids.has(id))) await db.trips.upsert({ ...t, petIds: t.petIds.filter((id) => !ids.has(id)), packing: t.packing.filter((i) => !i.petId || !ids.has(i.petId)) });
@@ -113,6 +117,7 @@ export async function removePet(db: Db, petId: string): Promise<void> {
   await db.feedingLogs.replaceAll(await db.feedingLogs.list((l) => l.petId !== petId));
   await db.treatLogs.replaceAll(await db.treatLogs.list((l) => l.petId !== petId));
   await db.switchPlans.replaceAll(await db.switchPlans.list((p) => p.petId !== petId));
+  await db.plates.replaceAll(await db.plates.list((p) => p.petId !== petId));
   // money already spent stays in the totals, just no longer tagged to the pet
   const expenses = await db.expenses.list();
   if (expenses.some((e) => e.petId === petId)) await db.expenses.replaceAll(expenses.map((e) => (e.petId === petId ? { ...e, petId: undefined } : e)));
@@ -156,6 +161,7 @@ export async function exportAll(db: Db, appName: string): Promise<ExportBundle> 
     expenses: await db.expenses.list(),
     sitterRequests: await db.sitterRequests.list(),
     sitters: await db.sitters.list(),
+    plates: await db.plates.list(),
     dismissedNotifications: (await db.dismissed.list()).map((d) => d.id),
   };
 }
@@ -191,6 +197,7 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
     expenses: arr(b.expenses, 'expenses'),
     sitterRequests: arr(b.sitterRequests, 'sitterRequests'),
     sitters: arr(b.sitters, 'sitters'),
+    plates: arr(b.plates, 'plates'),
   };
   for (const [k, v] of Object.entries(lists)) if (!v.every(hasId)) throw new ImportError(`Some "${k}" records are missing an id.`);
   const pets = (lists.pets as Pet[]).map((p) => ({ ...p, allergies: Array.isArray(p.allergies) ? p.allergies : [] }));
@@ -218,6 +225,8 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
     .map((r) => ({ ...r, petIds: Array.isArray(r.petIds) ? r.petIds : [], services: Array.isArray(r.services) ? r.services : [], status: ['open', 'booked', 'cancelled'].includes(r.status) ? r.status : 'open' })));
   await db.sitters.replaceAll((lists.sitters as Sitter[]).filter((x) => typeof x.name === 'string' && x.name.trim() !== '')
     .map((x) => ({ ...x, petIds: Array.isArray(x.petIds) ? x.petIds : [], foundVia: typeof x.foundVia === 'string' ? x.foundVia : 'friend_family' })));
+  await db.plates.replaceAll((lists.plates as PetPlate[]).filter((x) => typeof x.petId === 'string' && Array.isArray(x.items))
+    .map((x) => ({ ...x, items: x.items.filter((i) => i && typeof i.typeId === 'string' && typeof i.share === 'number'), kcalSource: ['vet', 'estimate', 'none'].includes(x.kcalSource) ? x.kcalSource : 'none' })));
   await db.dismissed.replaceAll((Array.isArray(b.dismissedNotifications) ? b.dismissedNotifications : []).filter((x): x is string => typeof x === 'string').map((id) => ({ id })));
   db.store.setItem('meta:seeded', '1');
   return { pets: pets.length, places: lists.places.length, trips: lists.trips.length };

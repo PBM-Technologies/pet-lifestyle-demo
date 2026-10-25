@@ -643,3 +643,52 @@ main:focus { outline: none; }
   .app { padding: 0; }
   .care-sheet { box-shadow: none; border-color: #ccc; }
 }
+
+/* ---------- create a plate ---------- */
+.plate-about-head { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.plate-facts .field { margin-bottom: 8px; }
+.kcal-box { display: flex; gap: 8px; align-items: flex-start; background: var(--c-surface-alt); border-radius: var(--radius-sm); padding: 10px 12px; margin-top: 4px; }
+.kcal-box svg { flex-shrink: 0; margin-top: 2px; color: var(--c-primary); }
+.kcal-box p { margin: 0; }
+.plate-visual { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; margin: 4px 0 10px; }
+.plate-svg { flex-shrink: 0; max-width: 100%; height: auto; }
+.plate-rim { fill: var(--c-surface); stroke: var(--c-border); stroke-width: 2; }
+.plate-dish { fill: var(--c-surface-alt); }
+.plate-track { fill: none; stroke: var(--c-surface); stroke-width: 36; }
+.plate-seg { fill: none; stroke-width: 36; transition: stroke-dasharray 0.25s, stroke-dashoffset 0.25s; }
+.plate-center { fill: var(--c-text); font-size: 15px; font-weight: 800; font-family: var(--font-body); }
+.plate-legend { list-style: none; margin: 0; padding: 0; flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.plate-legend li { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.swatch { width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--c-text) 15%, transparent); }
+.plate-items { list-style: none; margin: 8px 0 0; padding: 0; }
+.plate-item { padding: 10px 0; border-top: 1px solid var(--c-border); }
+.plate-item-top { display: flex; align-items: flex-start; gap: 10px; }
+.plate-item-top .swatch { margin-top: 4px; }
+.plate-line { margin: 6px 0 0 24px; }
+.plate-step { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0 0 24px; }
+.plate-step .stepper-value { min-width: 64px; }
+.plate-step .stepper-btn[aria-disabled="true"] { opacity: 0.4; }
+.plate-reason { margin: 6px 0 0 24px; color: var(--c-success); font-weight: 600; }
+.plate-amount { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0 24px; font-weight: 600; }
+.plate-amount svg { flex-shrink: 0; margin-top: 2px; color: var(--c-primary); }
+.plate-more { margin: 4px 0 0 24px; min-height: var(--tap); }
+.plate-fields { margin: 4px 0 0 24px; }
+.use-plate { border-left: 4px solid var(--c-primary); }
+.type-section { margin-top: 6px; }
+.type-grid { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+.type-card { background: var(--c-surface); border-radius: var(--radius); border: 1.5px solid var(--c-border); padding: 4px 12px 10px; box-shadow: var(--shadow); min-width: 0; }
+.type-card.on { border-color: var(--c-primary); background: color-mix(in srgb, var(--c-surface-alt) 55%, var(--c-surface)); }
+.type-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 6px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.type-box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--c-border); display: grid; place-items: center; flex-shrink: 0; color: var(--c-on-primary); }
+.type-card.on .type-box { background: var(--c-primary); border-color: var(--c-primary); }
+.type-card .plate-reason { margin: 0 0 6px; }
+.type-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 4px; }
+.tag { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: var(--c-surface-alt); color: var(--c-text-muted); }
+.type-details summary { min-height: var(--tap); display: flex; align-items: center; cursor: pointer; font-weight: 700; font-size: 0.85rem; color: var(--c-primary); }
+.type-details p { margin: 0 0 4px; }
+.type-shop { min-height: var(--tap); gap: 4px; }
+.plate-mini { display: flex; align-items: center; gap: 12px; padding: 8px 10px; margin: 2px 0 10px; border-radius: var(--radius-sm); background: var(--c-surface-alt); flex-wrap: wrap; }
+.plate-mini strong { overflow-wrap: anywhere; }
+.plate-mini:not(.empty-plate) { flex-wrap: nowrap; }
+.plate-mini .grow { flex: 1 1 0; }
+.plate-mini svg, .plate-mini .btn { flex-shrink: 0; }

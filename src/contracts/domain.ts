@@ -46,6 +46,12 @@ export interface Pet extends PetProfile {
   dailyCalorieTarget?: number;
   /** Habits, fears and quirks a sitter should know. */
   quirks?: string;
+  /** Everyday activity, used for the calorie starting estimate. */
+  activity?: 'low' | 'normal' | 'high';
+  /** Owner's read of body shape. "over" uses the weight loss factor. */
+  bodyCondition?: 'under' | 'ideal' | 'over';
+  /** Spayed or neutered. Unknown when unset. */
+  neutered?: boolean;
   isSample?: boolean;
 }
 
@@ -233,6 +239,8 @@ export interface PetFoodItem extends AuditFields {
   /** Purchase history, oldest first. The last entry is the current package. */
   purchases: FoodPurchase[];
   active: boolean;
+  /** Food type id from a saved plate that created or last updated this item. */
+  fromPlate?: string;
   isSample?: boolean;
 }
 
@@ -342,6 +350,39 @@ export interface Sitter extends AuditFields {
   isSample?: boolean;
 }
 
+/** Kinds of "other" pets the plate builder has guidance for. */
+export type OtherKind = 'rabbit' | 'guinea_pig' | 'bird' | 'reptile';
+/** Unit the user gives calories in for one plate item. */
+export type PlateUnit = 'cup' | 'can' | 'pouch' | 'oz' | 'piece' | 'serving';
+
+export interface PlateItem {
+  /** Id from src/content/foodTypes.ts. */
+  typeId: string;
+  /** Percent of the daily plate, in 5 percent steps. Supplements are 0. */
+  share: number;
+  /** Exactly one item is the base. */
+  base?: boolean;
+  /** Optional, typed by the user. The app never supplies product names. */
+  brand?: string;
+  product?: string;
+  /** Calories per unit, from the package. User-entered only. */
+  kcalPerUnit?: number;
+  unit?: PlateUnit;
+}
+
+/** A pet's planned daily plate. One per pet. */
+export interface PetPlate extends AuditFields {
+  householdId: ID;
+  petId: ID;
+  otherKind?: OtherKind;
+  items: PlateItem[];
+  /** Daily calories the amounts were worked out from, when known. */
+  kcalTarget?: number;
+  kcalSource: 'vet' | 'estimate' | 'none';
+  savedAt: string;
+  isSample?: boolean;
+}
+
 /** Shape of the JSON export/import file. */
 export interface ExportBundle {
   app: string;
@@ -365,6 +406,7 @@ export interface ExportBundle {
   expenses?: Expense[];
   sitterRequests?: SitterRequest[];
   sitters?: Sitter[];
+  plates?: PetPlate[];
   dismissedNotifications: ID[];
 }
 

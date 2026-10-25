@@ -25,6 +25,7 @@ import { IdentifyPage } from './pages/Identify';
 import { HealthCheckPage } from './pages/HealthCheck';
 import { BreedDetailPage, BreedMatchPage, BreedsPage } from './pages/Breeds';
 import { CareSheetPage, SitterRequestPage, SittersPage } from './pages/Sitters';
+import { PlatePetPage, PlateSpeciesPage, PlateStartPage } from './pages/Plate';
 
 type Render = (p: Record<string, string>, q: URLSearchParams) => ReactNode;
 
@@ -50,6 +51,9 @@ export const ROUTES: Array<{ pattern: string; title: string; tab: Tab; render: R
   { pattern: '/breeds/match', title: 'Find your match', tab: 'more', render: () => <BreedMatchPage /> },
   { pattern: '/breeds/:slug', title: 'Breed', tab: 'more', render: (p) => <BreedDetailPage slug={p.slug} /> },
   { pattern: '/spending', title: 'Spending', tab: 'more', render: () => <SpendingPage /> },
+  { pattern: '/plate', title: 'Create a plate', tab: 'pets', render: () => <PlateStartPage /> },
+  { pattern: '/plate/species/:species', title: 'Create a plate', tab: 'pets', render: (p) => <PlateSpeciesPage species={p.species} /> },
+  { pattern: '/plate/:petId', title: 'Create a plate', tab: 'pets', render: (p) => <PlatePetPage petId={p.petId} /> },
   { pattern: '/sitters', title: 'Find a sitter', tab: 'more', render: () => <SittersPage /> },
   { pattern: '/sitters/new', title: 'Sitter request', tab: 'more', render: (_p, q) => <SitterRequestPage query={q} /> },
   { pattern: '/sitters/care-sheet', title: 'Sitter care sheet', tab: 'more', render: (_p, q) => <CareSheetPage query={q} /> },

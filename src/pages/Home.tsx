@@ -46,6 +46,7 @@ export function HomePage() {
           <Link to="/boxes/build" className="quick-btn"><Icon name="gift" /><span>Build box</span></Link>
           <Link to="/identify" className="quick-btn"><Icon name="search" /><span>Identify breed</span></Link>
           <Link to="/health-check" className="quick-btn"><Icon name="camera" /><span>Health check</span></Link>
+          <Link to="/plate" className="quick-btn"><Icon name="plate" /><span>Create a plate</span></Link>
           <Link to="/sitters" className="quick-btn"><Icon name="sitter" /><span>Find a sitter</span></Link>
         </div>
       </section>

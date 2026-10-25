@@ -12,6 +12,7 @@ import {
 import { addDays, formatDay, isValidDay, newId, nowIso, today } from '../lib/dates';
 import { activePlan, mainFood } from '../lib/feeding';
 import { FeedingChecks, SwitchPlanSheet, SwitchStatus, TreatBudget } from './FoodExtras';
+import { PlateMini } from './Plate';
 
 const STATUS_TONE: Record<FoodStatus, 'success' | 'warning' | 'danger'> = { ok: 'success', reorder_soon: 'warning', out: 'danger' };
 
@@ -69,6 +70,7 @@ export function FoodCard({ pet }: { pet: Pet }) {
         <div className="mini-head"><Icon name="bag" /><h2>Food and treats</h2></div>
         <Button variant="ghost" icon="plus" aria-label={`Add food or treat for ${pet.name}`} onClick={() => setForm({ kind: foods.length ? 'treat' : 'food' })}>Add</Button>
       </div>
+      <PlateMini pet={pet} />
 
       {items.length === 0 && (
         <p className="muted small">Add {pet.name}'s food and favorite treats. Tell us the bag size and how much {pet.name} eats, and we will estimate how much is left and when to reorder.</p>

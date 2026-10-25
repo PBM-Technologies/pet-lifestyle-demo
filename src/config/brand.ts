@@ -17,6 +17,11 @@ export interface PartnerBrand {
   /** Which kinds of pets the partner is relevant to. */
   species: Array<'dog' | 'cat' | 'other'>;
   category: 'food_and_treats' | 'toys';
+  /**
+   * Food type ids (src/content/foodTypes.ts) to show a Shop link under in Create a plate.
+   * Leave out to show it only under the common shelf types (dry, wet and treats).
+   */
+  foodTypes?: string[];
 }
 
 export interface ColorSet {

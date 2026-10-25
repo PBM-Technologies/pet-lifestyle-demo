@@ -1,4 +1,4 @@
-import type { CareEvent, Expense, FeedingLog, PetEvent, Pet, PetFoodItem, PlaceListing } from '../contracts/domain';
+import type { CareEvent, Expense, FeedingLog, PetEvent, Pet, PetFoodItem, PetPlate, PlaceListing } from '../contracts/domain';
 import { addDays, addYears, parseDay, today } from '../lib/dates';
 import { BRAND } from '../config/brand';
 
@@ -80,7 +80,7 @@ export function sampleEvents(base: string = today()): PetEvent[] {
 
 export const SAMPLE_PET_IDS = { bailey: 'sample-pet-bailey', luna: 'sample-pet-luna' };
 
-export interface SampleBundle { pets: Pet[]; care: CareEvent[]; food: PetFoodItem[]; feedings: FeedingLog[]; expenses: Expense[] }
+export interface SampleBundle { pets: Pet[]; care: CareEvent[]; food: PetFoodItem[]; feedings: FeedingLog[]; expenses: Expense[]; plates: PetPlate[] }
 
 /** Calories shown for sample data are placeholders, labeled "Sample value" in the UI. Not advice. */
 export const SAMPLE_CALORIE_TARGET = 1300;
@@ -181,7 +181,27 @@ export function samplePets(householdId: string, base: string = today()): SampleB
     id: 'sample-feed-b-breakfast', householdId, petId: bailey.id, foodId: 'sample-food-b-food', day: base, slot: 0,
     fedAt: new Date(y, m - 1, d, 7, 40).toISOString(), isSample: true, createdAt: now, updatedAt: now,
   }];
-  return { pets: [bailey, luna], care, food, feedings, expenses: sampleExpenses(householdId, base, now) };
+  // Saved plates. Product names are generic placeholders and the kcal values are
+  // made-up sample numbers, labeled "Sample values" in the UI.
+  const plates: PetPlate[] = [
+    {
+      id: 'sample-plate-bailey', householdId, petId: bailey.id, kcalTarget: SAMPLE_CALORIE_TARGET, kcalSource: 'vet', savedAt: now, isSample: true, createdAt: now, updatedAt: now,
+      items: [
+        { typeId: 'dog-dry', share: 75, base: true, product: 'Fish based kibble (sample)', kcalPerUnit: 350, unit: 'cup' },
+        { typeId: 'dog-fresh', share: 15, product: 'Fish and rice topper (sample)', kcalPerUnit: 260, unit: 'cup' },
+        { typeId: 'dog-treats', share: 10, product: 'Salmon training bites (sample)', kcalPerUnit: SAMPLE_KCAL_PER_BITE, unit: 'piece' },
+      ],
+    },
+    {
+      id: 'sample-plate-luna', householdId, petId: luna.id, kcalSource: 'estimate', savedAt: now, isSample: true, createdAt: now, updatedAt: now,
+      items: [
+        { typeId: 'cat-wet-pate', share: 60, base: true, product: 'Pate cans (sample)', unit: 'can' },
+        { typeId: 'cat-dry', share: 30, unit: 'cup' },
+        { typeId: 'cat-lickable', share: 10, unit: 'piece' },
+      ],
+    },
+  ];
+  return { pets: [bailey, luna], care, food, feedings, expenses: sampleExpenses(householdId, base, now), plates };
 }
 
 /** Four months of clearly labeled sample spending. Amounts are made up for the demo. */

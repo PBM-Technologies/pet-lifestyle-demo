@@ -238,6 +238,18 @@ def demo_page(ctx):
     page.get_by_role('link', name='Care sheet').first.click()
     expect(page.get_by_test_id('care-sheet').get_by_role('heading', name='Care sheet for Luna')).to_be_visible()
     demo_shot(page, 'y-care-sheet', page.get_by_test_id('care-sheet'))
+    # create a plate: saved sample plates for Bailey and Luna
+    page.goto(DEMO + '#/plate/sample-pet-bailey')
+    card = page.locator('.plate-card')
+    expect(card.get_by_test_id('share-dog-dry')).to_have_text('75%')
+    expect(page.get_by_test_id('kcal-box')).to_contain_text('About 1,300 calories a day')
+    expect(card.get_by_test_id('amount-dog-dry')).to_contain_text('1.4 cups per feeding')
+    demo_shot(page, 'y-plate-bailey', card)
+    page.goto(DEMO + '#/plate/sample-pet-luna')
+    card = page.locator('.plate-card')
+    expect(card.get_by_test_id('share-cat-wet-pate')).to_have_text('60%')
+    expect(page.get_by_test_id('kcal-box')).to_contain_text('This is a starting estimate. Your vet can give you a target for your pet.')
+    demo_shot(page, 'y-plate-luna', card)
     # spending
     page.goto(DEMO + '#/spending')
     expect(page.get_by_test_id('month-total')).to_be_visible()
@@ -568,6 +580,7 @@ with sync_playwright() as p:
     dlg.get_by_role('button', name='Luna').click()
     dlg.get_by_role('button', name='Save sitter').click()
     riley = page.locator('.sitter', has_text='Riley')
+    page.wait_for_timeout(300)
     expect(riley.get_by_text('Found via Rover · knows Luna')).to_be_visible()
     expect(riley.get_by_role('img', name='4 out of 5 stars')).to_be_visible()
     page.evaluate("""() => { window.__copied = []; Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async (t) => { window.__copied.push(t); } } }); }""")
@@ -675,7 +688,7 @@ with sync_playwright() as p:
     expect(page.get_by_role('heading', name='At a glance')).to_be_visible()
 
     # other routes
-    for r in ['#/sitters', '#/sitters/new', '#/sitters/care-sheet', '#/care', '#/shop', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/nope', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
+    for r in ['#/sitters', '#/sitters/new', '#/sitters/care-sheet', '#/plate', '#/plate/sample-pet-bailey', '#/plate/species/other', '#/plate/missing', '#/care', '#/shop', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/nope', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
         page.goto(URL + r)
         page.wait_for_timeout(150)
         page.screenshot(path=f'{SHOTS}/route-{r.strip("#/").replace("/", "_") or "home"}.png')
@@ -684,6 +697,53 @@ with sync_playwright() as p:
     expect(page.get_by_text("Bailey's food runs out in about 5 days")).to_be_visible()
     page.goto(URL + '#/shop')
     expect(page.locator('a[href="https://healthextension.com"]')).to_be_visible()
+
+    # SET D: create a plate for Pepper (cat, no food yet), adjust shares, save, use it
+    page.goto(URL + '#/pets')
+    page.get_by_role('link', name=re.compile('Pepper')).first.click()
+    page.locator('.food-card').get_by_role('link', name='Create a plate').click()
+    page.wait_for_url(re.compile(r'#/plate/pet-'))
+    card = page.locator('.plate-card')
+    segs = lambda: card.locator('.plate-seg').evaluate_all("els => els.map(e => [e.dataset.type, +e.dataset.share])")
+
+    def wait_segs(want):
+        for _ in range(40):
+            if segs() == want:
+                return
+            page.wait_for_timeout(100)
+        assert segs() == want, segs()
+    wait_segs([['cat-wet-pate', 60], ['cat-dry', 30], ['cat-lickable', 10]])
+    expect(card.get_by_test_id('plate-item-cat-wet-pate').get_by_text('Suggested')).to_be_visible()
+    expect(card.get_by_text('Wet food adds water, good for cats.').first).to_be_visible()
+    expect(page.get_by_test_id('kcal-box')).to_contain_text("Add Pepper's weight")
+    page.get_by_role('button', name=re.compile('^Broths')).click()
+    expect(page.get_by_role('button', name=re.compile('^Broths'))).to_have_attribute('aria-pressed', 'true')
+    wait_segs([['cat-wet-pate', 55], ['cat-dry', 30], ['cat-lickable', 10], ['cat-broth', 5]])
+    card.get_by_role('button', name='More Dry food').click()
+    expect(card.get_by_test_id('share-cat-dry')).to_have_text('35%')
+    expect(card.get_by_test_id('share-cat-wet-pate')).to_have_text('50%')
+    # aria-disabled buttons still respond with the reason
+    card.get_by_role('button', name='More Dry food').click(force=True)
+    expect(card.get_by_text('The base stays at 50 percent or more.')).to_be_visible()
+    card.get_by_role('button', name='More Lickable treats').click(force=True)
+    expect(card.get_by_text('Treats stay at 10 percent or less.')).to_be_visible()
+    assert sum(x[1] for x in segs()) == 100, segs()
+    expect(page.get_by_role('img', name=re.compile('Daily plate: Wet pate 50 percent, Dry food 35 percent'))).to_be_visible()
+    card.get_by_role('button', name='Save plate').click()
+    expect(page.get_by_text('Plate saved')).to_be_visible()
+    card.get_by_role('button', name='Use this plate').click()
+    use = page.locator('.use-plate')
+    expect(use.get_by_role('heading', name='Use this plate for Pepper?')).to_be_visible()
+    expect(use.get_by_text('Add Wet pate as the main food')).to_be_visible()
+    expect(use.get_by_text('Add Lickable treats as a treat')).to_be_visible()
+    use.get_by_role('button', name='Confirm').click()
+    page.wait_for_url(re.compile(r'#/pets/pet-'))
+    food = page.locator('.food-card')
+    expect(food.get_by_test_id('plate-mini')).to_contain_text('Wet pate 50%, Dry food 35%, Lickable treats 10%, Broths 5%')
+    expect(food.get_by_role('button', name=re.compile('Edit Wet pate From your plate'))).to_be_visible()
+    expect(food.get_by_role('button', name=re.compile('Edit treat Treats from your plate'))).to_be_visible()
+    expect(page.locator('.feed-card, .food-card').get_by_role('button', name='Mark Breakfast fed for Pepper')).to_be_visible()
+    shot(page, 'plate-used', False)
 
     # export
     page.goto(URL + '#/account')
@@ -696,7 +756,8 @@ with sync_playwright() as p:
     with page.expect_download() as d:
         page.get_by_role('button', name='Export care records (CSV)').click()
     d.value.save_as(os.path.join(DL, 'care.csv'))
-    assert len(data['petFood']) == 7, len(data['petFood'])
+    assert len(data['petFood']) == 11, len(data['petFood'])
+    assert len(data['plates']) == 3, len(data['plates'])
     assert len(data['sitterRequests']) == 1 and data['sitterRequests'][0]['status'] == 'booked' and len(data['sitters']) == 2, (data['sitterRequests'], data['sitters'])
     assert len(data['feedingLogs']) >= 2 and len(data['switchPlans']) == 1 and any(e.get('note') == 'Ear check' for e in data['expenses'])
     with page.expect_download() as d:
@@ -735,7 +796,7 @@ with sync_playwright() as p:
 
     # 360 width check: no horizontal scroll
     page.set_viewport_size({'width': 360, 'height': 780})
-    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/golden-retriever', '#/sitters', '#/sitters/new?trip=' + trip_url.split('/travel/')[1], '#/sitters/care-sheet']:
+    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending', '#/identify', '#/health-check', '#/breeds', '#/breeds/match', '#/breeds/golden-retriever', '#/sitters', '#/sitters/new?trip=' + trip_url.split('/travel/')[1], '#/sitters/care-sheet', '#/plate', '#/plate/sample-pet-bailey', '#/plate/sample-pet-luna', '#/plate/species/other']:
         page.goto(URL + r); page.wait_for_timeout(120)
         sw = page.evaluate('document.documentElement.scrollWidth')
         if sw > 360: errors.append(f'horizontal overflow {sw}px on {r}')
