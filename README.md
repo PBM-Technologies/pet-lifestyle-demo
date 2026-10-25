@@ -1,4 +1,4 @@
-# Pet lifestyle app (working name in `src/config/brand.ts`)
+# Patches (pet lifestyle app; name, logo and colors live in `src/config/brand.ts`)
 
 A mobile-first consumer web app for a pet's whole life: care records, pet-friendly places, trips, events and mystery box plans, in one place. It works for dog people and cat people (and everyone else). Independent and brand-neutral; partner brands are optional links.
 

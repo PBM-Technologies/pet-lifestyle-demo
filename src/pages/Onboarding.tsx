@@ -40,9 +40,9 @@ export function Onboarding() {
   return (
     <div className="onboarding">
       <div className="onboarding-hero">
-        <img src={BRAND.logoDataUri} alt="" width={72} height={72} />
-        <h1>{BRAND.name}</h1>
-        <p>{BRAND.tagline}</p>
+        <img className="full-logo" src={BRAND.fullLogoDataUri} alt="" width={320} height={230} />
+        <h1 className="sr-only">{BRAND.name}</h1>
+        <p className="sr-only">{BRAND.tagline}</p>
       </div>
       <div className="card onboarding-card">
         <p className="step-label">Step {step} of 2</p>

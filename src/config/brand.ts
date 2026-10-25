@@ -1,7 +1,7 @@
 /**
  * Single source of truth for product identity.
  *
- * The product name is not final. Every occurrence of the name, tagline,
+ * Every occurrence of the name, tagline,
  * colors, logo and partner list lives in this file. The page title, meta
  * tags, design tokens, web app manifest and in-app copy all read from here
  * (vite.config.ts injects the HTML and manifest pieces at build time), so a
@@ -37,63 +37,62 @@ export interface ColorSet {
   success: string;
 }
 
-const PAW_LOGO_SVG =
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">' +
-  '<rect width="64" height="64" rx="16" fill="#244b40"/>' +
-  '<g fill="#f6f5f1">' +
-  '<ellipse cx="32" cy="41" rx="11" ry="9.5"/>' +
-  '<ellipse cx="19" cy="29" rx="4.6" ry="6" transform="rotate(-18 19 29)"/>' +
-  '<ellipse cx="27.5" cy="21" rx="4.6" ry="6.2" transform="rotate(-6 27.5 21)"/>' +
-  '<ellipse cx="36.5" cy="21" rx="4.6" ry="6.2" transform="rotate(6 36.5 21)"/>' +
-  '<ellipse cx="45" cy="29" rx="4.6" ry="6" transform="rotate(18 45 29)"/>' +
-  '</g>' +
-  '<circle cx="48" cy="48" r="6" fill="#e9895c"/>' +
+import { FULL_LOGO_WEBP, MARK_PNG_B64, MARK_WEBP } from './brandAssets';
+
+/** App icon: the dog and cat mark on cream, wrapped in SVG so icon.svg keeps working. */
+const LOGO_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">' +
+  '<rect width="256" height="256" rx="56" fill="#fdfcf8"/>' +
+  '<image width="256" height="256" href="data:image/png;base64,' + MARK_PNG_B64 + '"/>' +
   '</svg>';
 
 export const BRAND = {
-  /** Working product name. Not final. */
-  name: 'Wanderpaw',
+  /** Product name. */
+  name: 'Patches',
   /** Short name for the home screen icon label. */
-  shortName: 'Wanderpaw',
-  tagline: 'Life with your pets, mapped out.',
+  shortName: 'Patches',
+  tagline: "Your pet's world, all in one place.",
   description:
     'One place for your pet\'s whole life: care records, pet-friendly places, trips, events and treat boxes. For dog and cat people alike.',
-  logoSvg: PAW_LOGO_SVG,
-  logoDataUri: 'data:image/svg+xml,' + encodeURIComponent(PAW_LOGO_SVG),
+  logoSvg: LOGO_SVG,
+  /** Square dog and cat mark for headers and icons. */
+  logoDataUri: MARK_WEBP,
+  /** Full logo with wordmark and tagline. */
+  fullLogoDataUri: FULL_LOGO_WEBP,
   colors: {
     light: {
-      primary: '#244b40',
-      primaryStrong: '#1a382f',
+      primary: '#44787a',
+      primaryStrong: '#2f5f62',
       onPrimary: '#ffffff',
-      accent: '#e9895c',
-      accentSoft: '#fbe7dc',
-      onAccent: '#2a1a12',
-      background: '#f6f5f1',
+      accent: '#e8907c',
+      accentSoft: '#fbe6df',
+      onAccent: '#3a1d16',
+      background: '#fdfcf8',
       surface: '#ffffff',
-      surfaceAlt: '#eaf0e8',
-      text: '#22302a',
-      textMuted: '#5d6e64',
-      border: '#d9ddd5',
+      surfaceAlt: '#e7f1ee',
+      text: '#22393a',
+      textMuted: '#5c7273',
+      border: '#d8e4e0',
       danger: '#b3261e',
       warning: '#8a5a00',
-      success: '#2e6b4f',
+      success: '#2e6b5f',
     },
     dark: {
-      primary: '#8cc7ae',
-      primaryStrong: '#a8d8c2',
-      onPrimary: '#0f241d',
-      accent: '#f0a07a',
-      accentSoft: '#3a2a22',
-      onAccent: '#24140c',
-      background: '#121815',
-      surface: '#1b2420',
-      surfaceAlt: '#22312a',
-      text: '#e8ede9',
-      textMuted: '#a5b3aa',
-      border: '#33423b',
+      primary: '#8fc6c2',
+      primaryStrong: '#acd8d4',
+      onPrimary: '#0f2425',
+      accent: '#f0a594',
+      accentSoft: '#3b2722',
+      onAccent: '#2a140e',
+      background: '#111818',
+      surface: '#1a2323',
+      surfaceAlt: '#213030',
+      text: '#e8efee',
+      textMuted: '#a3b4b3',
+      border: '#334443',
       danger: '#ffb4ab',
       warning: '#f2c56b',
-      success: '#8cc7ae',
+      success: '#8fc6c2',
     },
   } satisfies { light: ColorSet; dark: ColorSet },
   /** Optional shop partners. Linked out only; the app identity stays brand-neutral. */
@@ -142,7 +141,7 @@ export function buildManifest() {
     theme_color: BRAND.colors.light.primary,
     icons: [
       { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-      { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+      { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
     ],
   };
 }
