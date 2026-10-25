@@ -1,14 +1,37 @@
 """Phone-size click-through of every route.
 
-Usage: npm run build && (cd dist && python3 -m http.server 4173) &
-       python3 tests/e2e/smoke.py http://localhost:4173/index.html [screenshot_dir]
+Usage: npm run build && npm run build:demo
+       python3 tests/e2e/smoke.py [URL|-] [screenshot_dir] [demo_screenshot_dir]
+With no URL (or "-") the script serves dist/ on a free port itself. The demo
+build (dist-demo/) is always served on its own free port for the demo
+screenshots and the photo AI flow with a fake window.claude runtime.
 Requires: pip install playwright && python -m playwright install chromium
 """
-import json, os, sys, re, tempfile
+import functools, http.server, json, os, sys, re, tempfile, threading
 from playwright.sync_api import sync_playwright, expect
 
-URL = sys.argv[1]
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def serve(directory):
+    """Serves a folder on a free localhost port in a background thread."""
+    class Quiet(http.server.SimpleHTTPRequestHandler):
+        def log_message(self, *a, **k):
+            pass
+    handler = functools.partial(Quiet, directory=directory)
+    httpd = http.server.ThreadingHTTPServer(('127.0.0.1', 0), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, f'http://127.0.0.1:{httpd.server_address[1]}/index.html'
+
+
+SERVERS = []
+if len(sys.argv) > 1 and sys.argv[1] != '-':
+    URL = sys.argv[1]
+else:
+    _h, URL = serve(os.path.join(ROOT, 'dist')); SERVERS.append(_h)
 SHOTS = sys.argv[2] if len(sys.argv) > 2 else os.path.join(tempfile.gettempdir(), 'app-shots')
+DEMO_SHOTS = sys.argv[3] if len(sys.argv) > 3 else SHOTS
+os.makedirs(DEMO_SHOTS, exist_ok=True)
 WORK = tempfile.mkdtemp()
 IMG = os.path.join(WORK, 'pet.jpg')
 DL = os.path.join(WORK, 'dl')
@@ -34,6 +57,64 @@ def shot(page, name, full=False):
 def log_console(msg):
     if msg.type in ('error', 'warning'):
         errors.append(f'{msg.type}: {msg.text}')
+
+def scroll_to(page, locator, offset=8):
+    locator.first.evaluate(f"el => window.scrollTo(0, el.getBoundingClientRect().top + window.scrollY - {offset})")
+    page.wait_for_timeout(200)
+
+
+def demo_shot(page, name, top=None):
+    try:
+        page.locator('.toast').wait_for(state='detached', timeout=4000)
+    except Exception:
+        pass
+    page.evaluate('document.activeElement && document.activeElement.blur()')
+    if top is not None:
+        scroll_to(page, top)
+    else:
+        page.evaluate('window.scrollTo(0,0)')
+        page.wait_for_timeout(150)
+    page.screenshot(path=f'{DEMO_SHOTS}/{name}.png')
+
+
+def demo_page(ctx):
+    """Demo build: household members, sample feedings, switch plan, spending shots."""
+    page = ctx.new_page()
+    page.on('console', log_console)
+    page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
+    page.goto(DEMO)
+    feed = page.locator('.feed-card')
+    expect(feed.get_by_text('Bailey was fed at 7:40 AM by Sarah')).to_be_visible()
+    expect(feed.get_by_role('group', name='Who is feeding').get_by_role('button', name='Alex')).to_be_visible()
+    feed.get_by_role('button', name='Alex').click()
+    feed.get_by_role('button', name='Mark Breakfast fed for Luna').click()
+    expect(feed.get_by_text(re.compile('Luna was fed at .* by Alex'))).to_be_visible()
+    demo_shot(page, 'x-home-feedings', page.get_by_role('heading', name='Your pets'))
+    # switch plan on Bailey
+    page.goto(DEMO + '#/pets/sample-pet-bailey')
+    food = page.locator('.food-card')
+    food.get_by_role('button', name='Switch to a new food').click()
+    dlg = page.get_by_role('dialog')
+    dlg.get_by_role('radio', name='Add a new food').click()
+    dlg.get_by_label('Brand').fill('Sample Ocean Kitchen')
+    dlg.get_by_label('Food name').fill('Salmon and rice (sample)')
+    dlg.get_by_role('button', name='Start plan').click()
+    expect(food.get_by_text("Today's mix: 1.5 cups old + 0.5 cups new per feeding")).to_be_visible()
+    for _ in range(4):
+        food.get_by_role('button', name='One more Salmon training bites (sample)').click()
+    expect(food.get_by_text('16 of about 130 kcal')).to_be_visible()
+    demo_shot(page, 'x-food-switch-plan', food)
+    page.evaluate("window.scrollBy(0, 560)")
+    page.wait_for_timeout(150)
+    page.screenshot(path=f'{DEMO_SHOTS}/x-food-treats.png')
+    # spending
+    page.goto(DEMO + '#/spending')
+    expect(page.get_by_test_id('month-total')).to_be_visible()
+    demo_shot(page, 'x-spending')
+    scroll_to(page, page.get_by_role('heading', name='Last 6 months'), 80)
+    page.screenshot(path=f'{DEMO_SHOTS}/x-spending-trend.png')
+    page.close()
+
 
 with sync_playwright() as p:
     b = p.chromium.launch()
@@ -146,6 +227,86 @@ with sync_playwright() as p:
     expect(page.get_by_role('link', name=re.compile('Reorder from'))).to_have_attribute('href', 'https://healthextension.com')
     shot(page, 'pet-detail', False)
     shot(page, 'pet-detail-full', True)
+
+    # SET A: feeding check-off (sample breakfast is done), persists after reload, undo
+    food = page.locator('.food-card')
+    expect(food.get_by_text('Bailey was fed at 7:40 AM')).to_be_visible()
+    expect(food.get_by_role('button', name='Undo Breakfast for Bailey')).to_be_visible()
+    food.get_by_role('button', name='Mark Dinner fed for Bailey').click()
+    expect(food.get_by_role('button', name='Undo Dinner for Bailey')).to_be_visible()
+    page.reload()
+    food = page.locator('.food-card')
+    expect(food.get_by_role('button', name='Undo Dinner for Bailey')).to_be_visible()
+    food.get_by_role('button', name='Undo Dinner for Bailey').click()
+    expect(food.get_by_role('button', name='Mark Dinner fed for Bailey')).to_be_visible()
+    # treat budget: sample target 1300 kcal, sample bites 4 kcal each
+    expect(food.get_by_text('Sample values')).to_be_visible()
+    meter = food.get_by_role('meter', name=re.compile('Treat calories today'))
+    expect(meter).to_have_attribute('aria-valuenow', '0')
+    for _ in range(3):
+        food.get_by_role('button', name='One more Salmon training bites (sample)').click()
+    expect(meter).to_have_attribute('aria-valuenow', '12')
+    expect(food.get_by_text('12 of about 130 kcal')).to_be_visible()
+    food.get_by_role('button', name='One less Salmon training bites (sample)').click()
+    expect(meter).to_have_attribute('aria-valuenow', '8')
+    page.reload()
+    expect(page.locator('.food-card').get_by_role('meter', name=re.compile('Treat calories today'))).to_have_attribute('aria-valuenow', '8')
+    # food switch plan
+    food = page.locator('.food-card')
+    food.get_by_role('button', name='Switch to a new food').click()
+    dlg = page.get_by_role('dialog')
+    dlg.get_by_role('radio', name='Add a new food').click()
+    dlg.get_by_label('Brand').fill('Test Salmon Co')
+    dlg.get_by_label('Food name').fill('Salmon kibble')
+    expect(dlg.get_by_role('radio', name=re.compile('7 days'))).to_have_attribute('aria-checked', 'true')
+    expect(dlg.get_by_text('Days 1 to 2')).to_be_visible()
+    dlg.get_by_role('button', name='Start plan').click()
+    expect(food.get_by_text("Today's mix: 1.5 cups old + 0.5 cups new per feeding")).to_be_visible()
+    expect(food.get_by_text('Day 1 of 7')).to_be_visible()
+    expect(food.get_by_text('Slow down if you see an upset stomach and ask your vet.')).to_be_visible()
+    page.reload()
+    expect(page.locator('.food-card').get_by_text("Today's mix: 1.5 cups old + 0.5 cups new per feeding")).to_be_visible()
+
+    # SET A: household members and "fed by" from the Home card
+    page.goto(URL + '#/account')
+    page.get_by_label('Add a household member').fill('Sam')
+    page.get_by_role('button', name='Add', exact=True).click()
+    expect(page.get_by_role('button', name='Remove Sam', exact=True)).to_be_visible()
+    expect(page.get_by_text('Sharing with family comes with accounts')).to_be_visible()
+    page.goto(URL + '#/')
+    feed = page.locator('.feed-card')
+    expect(feed.get_by_role('heading', name="Today's feedings")).to_be_visible()
+    feed.get_by_role('group', name='Who is feeding').get_by_role('button', name='Sam').click()
+    feed.get_by_role('button', name='Mark Dinner fed for Bailey').click()
+    expect(feed.get_by_text(re.compile(r'Bailey was fed at \d+:\d\d [AP]M by Sam'))).to_be_visible()
+
+    # SET A: spending, add an expense and see the month total change
+    page.goto(URL + '#/more')
+    page.get_by_role('link', name=re.compile('Spending')).click()
+    expect(page.get_by_role('heading', name='Spending')).to_be_visible()
+    money = lambda: float(page.get_by_test_id('month-total').inner_text().replace('$', '').replace(',', ''))
+    before = money()
+    assert before > 0, before  # sample expenses this month
+    page.get_by_role('button', name='Add expense').click()
+    dlg = page.get_by_role('dialog')
+    dlg.get_by_role('button', name='Vet', exact=True).click()
+    dlg.get_by_label('Amount ($)').fill('45.25')
+    dlg.get_by_label('Note (optional)').fill('Ear check')
+    dlg.get_by_role('button', name='Save', exact=True).click()
+    expect(page.get_by_text('Ear check')).to_be_visible()
+    assert abs(money() - (before + 45.25)) < 0.001, (before, money())
+    expect(page.get_by_role('heading', name='Last 6 months')).to_be_visible()
+    expect(page.get_by_role('heading', name='Average monthly cost per pet')).to_be_visible()
+    page.get_by_role('button', name='Previous month').click()
+    expect(page.get_by_role('button', name='Next month')).to_be_visible()
+    with page.expect_download() as d:
+        page.get_by_role('button', name='Export spending (CSV)').click()
+    d.value.save_as(os.path.join(DL, 'spending.csv'))
+    assert 'Ear check' in open(os.path.join(DL, 'spending.csv')).read()
+    page.reload()
+    expect(page.get_by_text('Ear check')).to_be_visible()
+    page.goto(URL + '#/pets/sample-pet-bailey')
+    page.get_by_role('heading', name='Bailey').wait_for()
     page.get_by_role('button', name=re.compile('Mark Heartworm preventive done')).click()
     # profile + docs tabs
     page.get_by_role('tab', name='Profile').click()
@@ -254,7 +415,7 @@ with sync_playwright() as p:
     expect(page.get_by_text('Coming soon.').first).to_be_visible()
 
     # other routes
-    for r in ['#/care', '#/shop', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
+    for r in ['#/care', '#/shop', '#/spending', '#/more', '#/notifications', '#/account', '#/explore/sample-place-riverside', '#/nope', '#/pets/missing', '#/travel/missing', '#/explore/missing']:
         page.goto(URL + r)
         page.wait_for_timeout(150)
         page.screenshot(path=f'{SHOTS}/route-{r.strip("#/").replace("/", "_") or "home"}.png')
@@ -275,7 +436,8 @@ with sync_playwright() as p:
     with page.expect_download() as d:
         page.get_by_role('button', name='Export care records (CSV)').click()
     d.value.save_as(os.path.join(DL, 'care.csv'))
-    assert len(data['petFood']) == 6, len(data['petFood'])
+    assert len(data['petFood']) == 7, len(data['petFood'])
+    assert len(data['feedingLogs']) >= 2 and len(data['switchPlans']) == 1 and any(e.get('note') == 'Ear check' for e in data['expenses'])
     with page.expect_download() as d:
         page.get_by_role('button', name='Export food and treats (CSV)').click()
     d.value.save_as(os.path.join(DL, 'food.csv'))
@@ -312,7 +474,7 @@ with sync_playwright() as p:
 
     # 360 width check: no horizontal scroll
     page.set_viewport_size({'width': 360, 'height': 780})
-    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account']:
+    for r in ['#/', '#/explore', '#/pets/sample-pet-bailey', '#/pets/sample-pet-luna', trip_url.split('#')[1] and '#' + trip_url.split('#')[1], '#/boxes/build', '#/events', '#/account', '#/spending']:
         page.goto(URL + r); page.wait_for_timeout(120)
         sw = page.evaluate('document.documentElement.scrollWidth')
         if sw > 360: errors.append(f'horizontal overflow {sw}px on {r}')
@@ -336,6 +498,11 @@ with sync_playwright() as p:
     page.set_viewport_size({'width': 1280, 'height': 860})
     page.goto(URL + '#/'); page.wait_for_timeout(200)
     page.screenshot(path=f'{SHOTS}/desktop-home.png')
+
+    # ---------- demo build at 390x844, device scale 1 ----------
+    dh, DEMO = serve(os.path.join(ROOT, 'dist-demo')); SERVERS.append(dh)
+    demo = b.new_context(viewport={'width': 390, 'height': 844}, device_scale_factor=1, is_mobile=True, has_touch=True)
+    demo_page(demo)
     b.close()
 
 ignore = ('fonts.googleapis', 'fonts.gstatic', 'ERR_TUNNEL', 'ERR_CONNECTION', 'net::', 'Failed to load resource')
@@ -343,3 +510,5 @@ real = [e for e in errors if not any(i in e for i in ignore)]
 print('ALL CONSOLE:', *errors, sep='\n  ')
 print('REAL ERRORS:', real)
 print('OK' if not real else 'FAIL')
+for h in SERVERS:
+    h.shutdown()

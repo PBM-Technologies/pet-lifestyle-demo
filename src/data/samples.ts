@@ -1,5 +1,5 @@
-import type { CareEvent, PetEvent, Pet, PetFoodItem, PlaceListing } from '../contracts/domain';
-import { addDays, addYears, today } from '../lib/dates';
+import type { CareEvent, Expense, FeedingLog, PetEvent, Pet, PetFoodItem, PlaceListing } from '../contracts/domain';
+import { addDays, addYears, parseDay, today } from '../lib/dates';
 import { BRAND } from '../config/brand';
 
 /**
@@ -80,7 +80,13 @@ export function sampleEvents(base: string = today()): PetEvent[] {
 
 export const SAMPLE_PET_IDS = { bailey: 'sample-pet-bailey', luna: 'sample-pet-luna' };
 
-export function samplePets(householdId: string, base: string = today()): { pets: Pet[]; care: CareEvent[]; food: PetFoodItem[] } {
+export interface SampleBundle { pets: Pet[]; care: CareEvent[]; food: PetFoodItem[]; feedings: FeedingLog[]; expenses: Expense[] }
+
+/** Calories shown for sample data are placeholders, labeled "Sample value" in the UI. Not advice. */
+export const SAMPLE_CALORIE_TARGET = 1300;
+export const SAMPLE_KCAL_PER_BITE = 4;
+
+export function samplePets(householdId: string, base: string = today()): SampleBundle {
   const now = new Date().toISOString();
   const bailey: Pet = {
     id: SAMPLE_PET_IDS.bailey,
@@ -94,6 +100,7 @@ export function samplePets(householdId: string, base: string = today()): { pets:
     allergies: ['Chicken'],
     dietaryNotes: 'Sensitive stomach. Fish based food.',
     vetName: 'Sample Vet Clinic',
+    dailyCalorieTarget: SAMPLE_CALORIE_TARGET,
     isSample: true,
     createdAt: now,
     updatedAt: now,
@@ -155,7 +162,7 @@ export function samplePets(householdId: string, base: string = today()): { pets:
     }),
     f('b-bites', bailey.id, {
       kind: 'treat', brand: 'Sample Treat Co', product: 'Salmon training bites (sample)', favorite: true,
-      packageSize: 100, packageUnit: 'count', purchasedOn: addDays(base, -10), portionAmount: 5, portionUnit: 'pieces', timesPerDay: 1,
+      packageSize: 100, packageUnit: 'count', purchasedOn: addDays(base, -10), portionAmount: 5, portionUnit: 'pieces', timesPerDay: 1, kcalPerPiece: SAMPLE_KCAL_PER_BITE,
       purchases: [{ date: addDays(base, -10), size: 100, unit: 'count' }],
     }),
     f('b-biscuits', bailey.id, { kind: 'treat', brand: 'Sample Treat Co', product: 'Peanut butter biscuits (sample)', favorite: true, purchases: [] }),
@@ -165,5 +172,45 @@ export function samplePets(householdId: string, base: string = today()): { pets:
       purchases: [{ date: addDays(base, -9), size: 24, unit: 'cans' }],
     }),
   ];
-  return { pets: [bailey, luna], care, food };
+  // Breakfast already checked off today for Bailey.
+  const [y, m, d] = base.split('-').map(Number);
+  const feedings: FeedingLog[] = [{
+    id: 'sample-feed-b-breakfast', householdId, petId: bailey.id, foodId: 'sample-food-b-food', day: base, slot: 0,
+    fedAt: new Date(y, m - 1, d, 7, 40).toISOString(), isSample: true, createdAt: now, updatedAt: now,
+  }];
+  return { pets: [bailey, luna], care, food, feedings, expenses: sampleExpenses(householdId, base, now) };
+}
+
+/** Four months of clearly labeled sample spending. Amounts are made up for the demo. */
+function sampleExpenses(householdId: string, base: string, now: string): Expense[] {
+  const b = parseDay(base);
+  const dayIn = (monthsBack: number, dom: number): string => {
+    const dt = new Date(b.getFullYear(), b.getMonth() - monthsBack, 1);
+    const last = new Date(dt.getFullYear(), dt.getMonth() + 1, 0).getDate();
+    const day = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(Math.min(dom, last)).padStart(2, '0')}`;
+    return day > base ? base : day;
+  };
+  const x = (id: string, monthsBack: number, dom: number, category: Expense['category'], amount: number, petId: string | undefined, note: string): Expense => ({
+    id: 'sample-exp-' + id, householdId, category, amount, date: dayIn(monthsBack, dom), petId, note: `${note} (sample)`, isSample: true, createdAt: now, updatedAt: now,
+  });
+  const B = SAMPLE_PET_IDS.bailey, L = SAMPLE_PET_IDS.luna;
+  return [
+    x('m0-food', 0, 3, 'food', 54, B, 'Dry food bag'),
+    x('m0-cat', 0, 4, 'food', 31.5, L, 'Case of cat food'),
+    x('m0-toys', 0, 8, 'toys', 16, B, 'Rope toy'),
+    x('m0-meds', 0, 2, 'meds', 38, B, 'Flea and tick chew'),
+    x('m1-food', 1, 6, 'food', 54, B, 'Dry food bag'),
+    x('m1-cat', 1, 9, 'food', 31.5, L, 'Case of cat food'),
+    x('m1-vet', 1, 14, 'vet', 95, L, 'Checkup and vaccine'),
+    x('m1-litter', 1, 20, 'supplies', 22, L, 'Litter'),
+    x('m2-food', 2, 5, 'food', 54, B, 'Dry food bag'),
+    x('m2-cat', 2, 11, 'food', 29, L, 'Case of cat food'),
+    x('m2-groom', 2, 18, 'grooming', 60, B, 'Bath and brush out'),
+    x('m2-treats', 2, 22, 'treats', 12, B, 'Training treats'),
+    x('m2-sit', 2, 27, 'boarding', 80, undefined, 'Weekend pet sitter'),
+    x('m3-food', 3, 4, 'food', 52, B, 'Dry food bag'),
+    x('m3-cat', 3, 12, 'food', 29, L, 'Case of cat food'),
+    x('m3-meds', 3, 15, 'meds', 64, B, 'Heartworm preventive'),
+    x('m3-toys', 3, 23, 'toys', 9, L, 'Feather wand'),
+  ];
 }

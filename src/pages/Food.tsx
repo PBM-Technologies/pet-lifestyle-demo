@@ -10,6 +10,8 @@ import {
   type FoodEstimate, type FoodStatus,
 } from '../lib/food';
 import { addDays, formatDay, isValidDay, newId, nowIso, today } from '../lib/dates';
+import { activePlan, mainFood } from '../lib/feeding';
+import { FeedingChecks, SwitchPlanSheet, SwitchStatus, TreatBudget } from './FoodExtras';
 
 const STATUS_TONE: Record<FoodStatus, 'success' | 'warning' | 'danger'> = { ok: 'success', reorder_soon: 'warning', out: 'danger' };
 
@@ -50,6 +52,9 @@ export function FoodCard({ pet }: { pet: Pet }) {
   const [form, setForm] = useState<{ item?: PetFoodItem; kind: FoodKind } | null>(null);
   const [justBought, setJustBought] = useState<string | null>(null);
   const [editPurchase, setEditPurchase] = useState<PetFoodItem | null>(null);
+  const [switchFrom, setSwitchFrom] = useState<PetFoodItem | null>(null);
+  const plan = activePlan(data.switchPlans, pet.id);
+  const main = mainFood(data.food, pet.id, data.switchPlans);
 
   const boughtNew = async (item: PetFoodItem) => {
     const next = logNewPurchase(item, today(), nowIso());
@@ -95,8 +100,12 @@ export function FoodCard({ pet }: { pet: Pet }) {
             ) : (
               <p className="muted small">Add the bag size, date bought and portions to see how much is left. <button type="button" className="text-link" onClick={() => setForm({ item, kind: item.kind })}>Add details</button></p>
             )}
+            {main?.id === item.id && <FeedingChecks pet={pet} food={item} />}
+            {plan?.oldFoodId === item.id && <SwitchStatus plan={plan} oldFood={item} />}
+            {plan?.newFoodId === item.id && <p className="small food-meta"><Badge tone="accent">New food in the switch plan</Badge></p>}
             <div className="food-actions">
               {item.packageSize ? <Button icon="bag" onClick={() => boughtNew(item)}>I bought a new bag</Button> : null}
+              {!plan && main?.id === item.id && <Button variant="secondary" icon="clock" onClick={() => setSwitchFrom(item)}>Switch to a new food</Button>}
               <PartnerLink brand={item.brand} />
             </div>
             {justBought === item.id && latest && (
@@ -125,9 +134,11 @@ export function FoodCard({ pet }: { pet: Pet }) {
               );
             })}
           </div>
+          <TreatBudget pet={pet} treats={treats} />
         </>
       )}
 
+      {switchFrom && <SwitchPlanSheet pet={pet} oldFood={switchFrom} onClose={() => setSwitchFrom(null)} />}
       {form && <FoodFormSheet pet={pet} item={form.item} initialKind={form.kind} onClose={() => setForm(null)} />}
       {editPurchase && <PurchaseSheet item={data.food.find((f) => f.id === editPurchase.id) ?? editPurchase} onClose={() => setEditPurchase(null)} />}
     </Card>
@@ -200,6 +211,7 @@ export function FoodFormSheet({ pet, item, initialKind = 'food', onClose }: { pe
   const [whereBought, setWhereBought] = useState(item?.whereBought ?? '');
   const [notes, setNotes] = useState(item?.notes ?? '');
   const [active, setActive] = useState(item?.active ?? true);
+  const [kcal, setKcal] = useState(item?.kcalPerPiece !== undefined ? String(item.kcalPerPiece) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -227,6 +239,8 @@ export function FoodFormSheet({ pet, item, initialKind = 'food', onClose }: { pe
     if (kind === 'food' && portionN === undefined) e.portion = 'Enter how much per feeding.';
     if (!isValidDay(purchasedOn) || purchasedOn > t0) e.purchasedOn = 'Pick a date on or before today.';
     if (showCpl && !(cplN !== undefined && cplN > 0 && cplN <= 20)) e.cupsPerLb = 'Enter cups per pound from your bag.';
+    const kcalN = num(kcal);
+    if (kind === 'treat' && kcalN !== undefined && !(kcalN > 0 && kcalN <= 2000)) e.kcal = 'Enter calories per piece from the package, or leave it blank.';
     if (anyTracking && sizeN !== undefined && portionN !== undefined && !compatible) e.portionUnit = 'These units do not convert. Pick matching units.';
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -258,6 +272,7 @@ export function FoodFormSheet({ pet, item, initialKind = 'food', onClose }: { pe
       reorderLeadDays: Number(lead) || DEFAULT_REORDER_LEAD_DAYS,
       whereBought: whereBought.trim() || undefined,
       notes: notes.trim() || undefined,
+      kcalPerPiece: kind === 'treat' ? num(kcal) : undefined,
       purchases,
       active,
       updatedAt: now,
@@ -279,6 +294,7 @@ export function FoodFormSheet({ pet, item, initialKind = 'food', onClose }: { pe
             placeholder={kind === 'food' ? (pet.species === 'cat' ? 'Adult wet food' : 'Adult dry food') : 'Training bites'} />
           <TextField label="Flavor or formula (optional)" value={flavor} onChange={setFlavor} maxLength={80} />
           {kind === 'treat' && <Toggle label="Favorite" hint={`Show as one of ${pet.name}'s favorites`} checked={favorite} onChange={setFavorite} />}
+          {kind === 'treat' && <TextField label="Calories per piece (optional)" value={kcal} onChange={setKcal} inputMode="decimal" error={errors.kcal} hint="From the package. Used for the daily treat budget." />}
 
           <h3 className="form-section">{kind === 'food' ? 'Bag and feeding' : 'Track how much is left (optional)'}</h3>
           <div className="unit-row">

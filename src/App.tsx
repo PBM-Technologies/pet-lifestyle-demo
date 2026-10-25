@@ -20,6 +20,7 @@ import { ShopPage } from './pages/Shop';
 import { AccountPage } from './pages/Account';
 import { MorePage } from './pages/More';
 import { NotificationsPage } from './pages/Notifications';
+import { SpendingPage } from './pages/Spending';
 
 type Render = (p: Record<string, string>, q: URLSearchParams) => ReactNode;
 
@@ -39,6 +40,7 @@ export const ROUTES: Array<{ pattern: string; title: string; tab: Tab; render: R
   { pattern: '/boxes/build', title: 'Build a box', tab: 'more', render: (_p, q) => <BoxBuilderPage query={q} /> },
   { pattern: '/shop', title: 'Shop', tab: 'more', render: () => <ShopPage /> },
   { pattern: '/account', title: 'Account', tab: 'more', render: () => <AccountPage /> },
+  { pattern: '/spending', title: 'Spending', tab: 'more', render: () => <SpendingPage /> },
   { pattern: '/more', title: 'More', tab: 'more', render: () => <MorePage /> },
   { pattern: '/notifications', title: 'Notifications', tab: 'home', render: () => <NotificationsPage /> },
 ];

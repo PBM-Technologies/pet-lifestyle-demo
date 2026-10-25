@@ -8,6 +8,8 @@ import { formatAge, formatDay, relativeDay, today, daysBetween } from '../lib/da
 import { loadSamplePets, removeSamplePets } from '../data/db';
 import { buildNotifications } from '../lib/notifications';
 import { FOOD_STATUS_LABEL, foodAlerts, runOutSentence, shortDay } from '../lib/food';
+import { mainFood } from '../lib/feeding';
+import { FeedingChecks, FeederPicker } from './FoodExtras';
 
 export function HomePage() {
   const { data, db, toast } = useApp();
@@ -19,6 +21,7 @@ export function HomePage() {
   const hasSamplePets = data.pets.some((p) => p.isSample);
   const petById = new Map(data.pets.map((p) => [p.id, p]));
   const lowFood = foodAlerts(data.food).filter((a) => petById.has(a.item.petId)).slice(0, 4);
+  const feedPets = data.pets.map((p) => ({ pet: p, food: mainFood(data.food, p.id, data.switchPlans) })).filter((x): x is { pet: typeof x.pet; food: NonNullable<typeof x.food> } => !!x.food);
   const unread = buildNotifications({ pets: data.pets, care: data.care, trips: data.trips, events: data.events, food: data.food }).filter((n) => !data.dismissed.has(n.id)).length;
 
   return (
@@ -76,6 +79,21 @@ export function HomePage() {
             </p>
           )}
         </section>
+      )}
+
+      {feedPets.length > 0 && (
+        <Card className="feed-card">
+          <div className="section-head">
+            <div className="mini-head"><Icon name="check" /><h2>Today's feedings</h2></div>
+          </div>
+          <FeederPicker />
+          {feedPets.map(({ pet, food }) => (
+            <div key={pet.id} className="home-feed">
+              <Link to={`/pets/${pet.id}`} className="home-feed-head"><PetAvatar pet={pet} size={36} /><strong>{pet.name}</strong></Link>
+              <FeedingChecks pet={pet} food={food} showPicker={false} />
+            </div>
+          ))}
+        </Card>
       )}
 
       {data.pets.length > 0 && (

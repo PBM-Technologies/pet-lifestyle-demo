@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Pet, Species } from '../contracts/domain';
 import { isValidDay, newId, nowIso, today } from '../lib/dates';
 import { parseList } from '../lib/boxes';
+import { CALORIE_HELP } from '../lib/feeding';
 import { useApp } from '../state';
 import { Button, ChoiceGroup, PhotoInput, Sheet, TextField } from '../ui/kit';
 
@@ -19,6 +20,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
   const [microchip, setMicrochip] = useState(pet?.microchip ?? '');
   const [vetName, setVetName] = useState(pet?.vetName ?? '');
   const [vetPhone, setVetPhone] = useState(pet?.vetPhone ?? '');
+  const [calories, setCalories] = useState(pet?.dailyCalorieTarget !== undefined ? String(pet.dailyCalorieTarget) : '');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -28,6 +30,8 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
     if (birthDate && (!isValidDay(birthDate) || birthDate > today())) e.birthDate = 'Pick a real date in the past.';
     const w = weight.trim() ? Number(weight) : undefined;
     if (w !== undefined && (!Number.isFinite(w) || w <= 0 || w > 400)) e.weight = 'Enter a weight between 0 and 400.';
+    const kcal = calories.trim() ? Number(calories) : undefined;
+    if (kcal !== undefined && !(Number.isFinite(kcal) && kcal >= 50 && kcal <= 10000)) e.calories = 'Enter calories between 50 and 10000, or leave it blank.';
     if (microchip && !/^[0-9A-Za-z\s-]{6,20}$/.test(microchip)) e.microchip = 'Microchip numbers are usually 9 to 15 letters or digits.';
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -47,6 +51,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
       microchip: microchip.trim() || undefined,
       vetName: vetName.trim() || undefined,
       vetPhone: vetPhone.trim() || undefined,
+      dailyCalorieTarget: kcal,
       updatedAt: now,
     } as Pet;
     try {
@@ -84,6 +89,7 @@ export function PetFormSheet({ open, onClose, pet, onSaved }: { open: boolean; o
         </div>
         <TextField label="Allergies" value={allergies} onChange={setAllergies} placeholder="Chicken, beef" hint="Separate with commas. Used to prefill box restrictions." />
         <TextField label="Diet notes" value={diet} onChange={setDiet} multiline />
+        <TextField label="Daily calorie target (optional)" value={calories} onChange={setCalories} inputMode="numeric" error={errors.calories} hint={CALORIE_HELP} />
         <TextField label="Microchip number" value={microchip} onChange={setMicrochip} error={errors.microchip} inputMode="numeric" />
         <div className="field-row">
           <TextField label="Vet name" value={vetName} onChange={setVetName} />

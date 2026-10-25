@@ -5,11 +5,19 @@ import { Link, navigate } from '../router';
 import { Button, Card, Confirm, PageHeader, PetAvatar, TextField, downloadFile } from '../ui/kit';
 import { careEventsCsv, deleteAll, petFoodCsv, ensureSeeded, exportAll, importAll, ImportError, loadSamplePets, removeSamplePets } from '../data/db';
 import { nowIso, today } from '../lib/dates';
+import { cleanMembers } from '../lib/feeding';
 import { Icon } from '../ui/Icon';
 
 export function AccountPage() {
   const { data, db, toast } = useApp();
   const [name, setName] = useState(data.household?.name ?? '');
+  const [member, setMember] = useState('');
+  const members = data.household?.members ?? [];
+  const saveMembers = async (next: string[], msg: string) => {
+    if (!data.household) return;
+    await db.households.upsert({ ...data.household, members: cleanMembers(next), updatedAt: nowIso() });
+    toast(msg);
+  };
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [confirmImport, setConfirmImport] = useState<unknown>(null);
   const [importErr, setImportErr] = useState<string>();
@@ -26,6 +34,28 @@ export function AccountPage() {
           <Button type="submit" variant="secondary">Save</Button>
         </form>
         <p className="muted small">Profile stored on this device only.{db.store.volatile ? ' Storage is unavailable in this browser, so changes last only until you close the tab.' : ''} Sign in and sync across devices are coming.</p>
+        <h3 className="form-section" id="members-head">Household members</h3>
+        <p className="muted small">Names only. Pick who is feeding on a food card so others can see who fed which pet and when.</p>
+        {members.length === 0 ? <p className="muted small">No names added yet.</p> : (
+          <ul className="member-list" aria-labelledby="members-head">
+            {members.map((m) => (
+              <li key={m}>
+                <span className="member-dot" aria-hidden="true">{m.slice(0, 1).toUpperCase()}</span>
+                <span className="grow">{m}</span>
+                <button type="button" className="icon-btn" aria-label={`Remove ${m}`} onClick={() => saveMembers(members.filter((x) => x !== m), `${m} removed`)}><Icon name="x" size={18} /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form className="inline-add" onSubmit={async (e) => { e.preventDefault(); if (!member.trim()) return; await saveMembers([...members, member], `${member.trim()} added`); setMember(''); }}>
+          <input aria-label="Add a household member" placeholder="Add a name" value={member} maxLength={30} onChange={(e) => setMember(e.target.value)} />
+          <Button type="submit" variant="secondary" icon="plus">Add</Button>
+        </form>
+        <p className="notice" role="note" style={{ marginTop: 12 }}><Icon name="users" size={18} /> <span>Sharing with family comes with accounts. Until then, everything stays on this device and nothing syncs to other phones.</span></p>
+      </Card>
+      <Card>
+        <div className="section-head"><h2>Spending</h2><Link to="/spending" className="text-link">Open</Link></div>
+        <p className="muted small">Monthly totals by category and pet, from expenses you add and prices on food purchases. Export as CSV from the Spending screen.</p>
       </Card>
       <Card>
         <div className="section-head"><h2>Pets</h2><Link to="/pets?add=1" className="text-link">Add pet</Link></div>
@@ -61,7 +91,7 @@ export function AccountPage() {
       </Card>
       <Card className="danger-zone">
         <h2>Delete all data</h2>
-        <p className="muted small">Removes your household, pets, records, food and treats, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
+        <p className="muted small">Removes your household, pets, records, food and treats, feedings, expenses, places, trips, events, posts and box plans from this device. Export first if you want a copy.</p>
         <Button variant="danger" icon="trash" onClick={() => setConfirmDelete(true)}>Delete everything</Button>
       </Card>
       <Confirm open={!!confirmImport} title="Replace your data?" confirmLabel="Import" body="Importing replaces everything currently on this device with the file's contents." onCancel={() => setConfirmImport(null)}

@@ -1,5 +1,6 @@
 import type {
-  BoxPlan, CareEvent, CommunityPost, ExportBundle, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace, TripPlan,
+  BoxPlan, CareEvent, CommunityPost, Expense, ExportBundle, FeedingLog, FoodSwitchPlan, Household, Pet, PetDocument, PetEvent, PetFoodItem, PlaceListing, SavedPlace,
+  TreatLog, TripPlan,
 } from '../contracts/domain';
 import { createKvRepository, type Repository } from './repository';
 import { createLocalStorageStore, type KeyValueStore } from './storage';
@@ -21,6 +22,10 @@ export interface Db {
   posts: Repository<CommunityPost>;
   boxPlans: Repository<BoxPlan>;
   petFood: Repository<PetFoodItem>;
+  feedingLogs: Repository<FeedingLog>;
+  treatLogs: Repository<TreatLog>;
+  switchPlans: Repository<FoodSwitchPlan>;
+  expenses: Repository<Expense>;
   dismissed: Repository<Dismissed>;
 }
 
@@ -41,8 +46,18 @@ export function createDb(store: KeyValueStore = createLocalStorageStore(STORAGE_
     posts: r('community_posts'),
     boxPlans: r('box_plans'),
     petFood: r('pet_food'),
+    feedingLogs: r('feeding_logs'),
+    treatLogs: r('treat_logs'),
+    switchPlans: r('food_switch_plans'),
+    expenses: r('expenses'),
     dismissed: r('dismissed_notifications'),
   };
+}
+
+/** Every repository, for reset and delete-all. */
+export function allRepos(db: Db): Array<Repository<{ id: string }>> {
+  return [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood,
+    db.feedingLogs, db.treatLogs, db.switchPlans, db.expenses, db.dismissed] as unknown as Array<Repository<{ id: string }>>;
 }
 
 /** Adds sample places and events once (first run). User can still delete them. */
@@ -60,10 +75,12 @@ export async function getHousehold(db: Db): Promise<Household | undefined> {
 }
 
 export async function loadSamplePets(db: Db, householdId: string): Promise<void> {
-  const { pets, care, food } = samplePets(householdId);
+  const { pets, care, food, feedings, expenses } = samplePets(householdId);
   for (const p of pets) await db.pets.upsert(p);
   for (const c of care) await db.careEvents.upsert(c);
   for (const f of food) await db.petFood.upsert(f);
+  for (const l of feedings) await db.feedingLogs.upsert(l);
+  for (const e of expenses) await db.expenses.upsert(e);
 }
 
 export async function removeSamplePets(db: Db): Promise<void> {
@@ -71,6 +88,10 @@ export async function removeSamplePets(db: Db): Promise<void> {
   const ids = new Set(pets.map((p) => p.id));
   for (const p of pets) await removePet(db, p.id);
   await db.petFood.replaceAll(await db.petFood.list((f) => !f.isSample));
+  await db.feedingLogs.replaceAll(await db.feedingLogs.list((l) => !l.isSample));
+  await db.treatLogs.replaceAll(await db.treatLogs.list((l) => !l.isSample));
+  await db.switchPlans.replaceAll(await db.switchPlans.list((p) => !p.isSample));
+  await db.expenses.replaceAll(await db.expenses.list((e) => !e.isSample));
   // detach sample pets from trips, events, posts, box plans
   const trips = await db.trips.list();
   for (const t of trips) if (t.petIds.some((id) => ids.has(id))) await db.trips.upsert({ ...t, petIds: t.petIds.filter((id) => !ids.has(id)), packing: t.packing.filter((i) => !i.petId || !ids.has(i.petId)) });
@@ -83,6 +104,12 @@ export async function removePet(db: Db, petId: string): Promise<void> {
   await db.documents.replaceAll(await db.documents.list((d) => d.petId !== petId));
   await db.boxPlans.replaceAll(await db.boxPlans.list((b) => b.petId !== petId));
   await db.petFood.replaceAll(await db.petFood.list((f) => f.petId !== petId));
+  await db.feedingLogs.replaceAll(await db.feedingLogs.list((l) => l.petId !== petId));
+  await db.treatLogs.replaceAll(await db.treatLogs.list((l) => l.petId !== petId));
+  await db.switchPlans.replaceAll(await db.switchPlans.list((p) => p.petId !== petId));
+  // money already spent stays in the totals, just no longer tagged to the pet
+  const expenses = await db.expenses.list();
+  if (expenses.some((e) => e.petId === petId)) await db.expenses.replaceAll(expenses.map((e) => (e.petId === petId ? { ...e, petId: undefined } : e)));
   const events = await db.events.list();
   for (const e of events) if (e.petIds.includes(petId)) await db.events.upsert({ ...e, petIds: e.petIds.filter((x) => x !== petId) });
   const posts = await db.posts.list();
@@ -110,6 +137,10 @@ export async function exportAll(db: Db, appName: string): Promise<ExportBundle> 
     posts: await db.posts.list(),
     boxPlans: await db.boxPlans.list(),
     petFood: await db.petFood.list(),
+    feedingLogs: await db.feedingLogs.list(),
+    treatLogs: await db.treatLogs.list(),
+    switchPlans: await db.switchPlans.list(),
+    expenses: await db.expenses.list(),
     dismissedNotifications: (await db.dismissed.list()).map((d) => d.id),
   };
 }
@@ -139,11 +170,17 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
     posts: arr(b.posts, 'posts'),
     boxPlans: arr(b.boxPlans, 'boxPlans'),
     petFood: arr(b.petFood, 'petFood'),
+    feedingLogs: arr(b.feedingLogs, 'feedingLogs'),
+    treatLogs: arr(b.treatLogs, 'treatLogs'),
+    switchPlans: arr(b.switchPlans, 'switchPlans'),
+    expenses: arr(b.expenses, 'expenses'),
   };
   for (const [k, v] of Object.entries(lists)) if (!v.every(hasId)) throw new ImportError(`Some "${k}" records are missing an id.`);
   const pets = (lists.pets as Pet[]).map((p) => ({ ...p, allergies: Array.isArray(p.allergies) ? p.allergies : [] }));
   if (pets.some((p) => typeof p.name !== 'string' || !['dog', 'cat', 'other'].includes(p.species))) throw new ImportError('Some pets have an invalid name or species.');
-  await db.households.replaceAll(b.household && hasId(b.household) ? [b.household as Household] : []);
+  const household = b.household && hasId(b.household) ? (b.household as Household) : null;
+  if (household && household.members !== undefined && !Array.isArray(household.members)) household.members = [];
+  await db.households.replaceAll(household ? [{ ...household, members: household.members?.filter((m) => typeof m === 'string') }] : []);
   await db.pets.replaceAll(pets);
   await db.careEvents.replaceAll(lists.careEvents as CareEvent[]);
   await db.documents.replaceAll(lists.documents as PetDocument[]);
@@ -154,15 +191,17 @@ export async function importAll(db: Db, raw: unknown): Promise<{ pets: number; p
   await db.posts.replaceAll(lists.posts as CommunityPost[]);
   await db.boxPlans.replaceAll(lists.boxPlans as BoxPlan[]);
   await db.petFood.replaceAll((lists.petFood as PetFoodItem[]).map((f) => ({ ...f, purchases: Array.isArray(f.purchases) ? f.purchases : [], favorite: !!f.favorite, active: f.active !== false })));
+  await db.feedingLogs.replaceAll((lists.feedingLogs as FeedingLog[]).filter((l) => typeof l.petId === 'string' && typeof l.day === 'string' && Number.isInteger(l.slot)));
+  await db.treatLogs.replaceAll((lists.treatLogs as TreatLog[]).filter((l) => typeof l.foodId === 'string' && typeof l.day === 'string').map((l) => ({ ...l, count: Math.max(0, Number(l.count) || 0) })));
+  await db.switchPlans.replaceAll((lists.switchPlans as FoodSwitchPlan[]).filter((p) => p.days === 7 || p.days === 10));
+  await db.expenses.replaceAll((lists.expenses as Expense[]).filter((e) => typeof e.amount === 'number' && e.amount >= 0 && typeof e.date === 'string'));
   await db.dismissed.replaceAll((Array.isArray(b.dismissedNotifications) ? b.dismissedNotifications : []).filter((x): x is string => typeof x === 'string').map((id) => ({ id })));
   db.store.setItem('meta:seeded', '1');
   return { pets: pets.length, places: lists.places.length, trips: lists.trips.length };
 }
 
 export async function deleteAll(db: Db): Promise<void> {
-  for (const repo of [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood, db.dismissed]) {
-    await repo.replaceAll([]);
-  }
+  for (const repo of allRepos(db)) await repo.replaceAll([]);
   db.store.removeItem('meta:seeded');
 }
 

@@ -40,12 +40,13 @@ src/data/storage.ts        localStorage adapter with try/catch and in-memory fal
 src/data/repository.ts     Repository<T> interface (list/get/upsert/remove) + KV implementation
 src/data/db.ts             per-domain repositories, seeding, export/import/delete, CSV
 src/data/samples.ts        clearly labeled fictional sample places, events and pets
-src/lib/*                  pure logic: dates/age, care due-soon, food estimates, packing, boxes, places, notifications
+src/lib/*                  pure logic: dates/age, care due-soon, food estimates, feeding and treat budget, food switch plans, spending, packing, boxes, places, notifications
 src/pages/*                screens for every route
 src/ui/*                   design system: buttons, sheets, tap-friendly pickers, icons, chart
 database/0001_identity.sql users, households, membership, notifications
 database/0002_pets.sql     household-scoped tables for every app domain
 database/0003_pet_food.sql food and treats per pet, with purchase history
+database/0004_food_extras.sql feeding logs, treat logs, food switch plans, expenses, member names
 demo/index.html            the original one-page concept demo (kept for reference)
 ```
 
@@ -53,11 +54,11 @@ To move to a backend, implement `Repository<T>` for Firebase or a Postgres API a
 
 ## Routes
 
-`#/` home, `#/explore`, `#/explore/:placeId`, `#/travel`, `#/travel/:tripId`, `#/pets`, `#/pets/:petId`, `#/care`, `#/community`, `#/events`, `#/boxes`, `#/boxes/build`, `#/shop`, `#/account`, plus `#/more` and `#/notifications` for the mobile shell.
+`#/` home, `#/explore`, `#/explore/:placeId`, `#/travel`, `#/travel/:tripId`, `#/pets`, `#/pets/:petId`, `#/care`, `#/community`, `#/events`, `#/boxes`, `#/boxes/build`, `#/shop`, `#/spending`, `#/account`, plus `#/more` and `#/notifications` for the mobile shell.
 
 ## Honest limits of this phase
 
-- Data stays on the device (localStorage). No accounts, no sync, no sharing.
+- Data stays on the device (localStorage). No accounts, no sync, no sharing. Household member names are labels for "fed by" only.
 - Places are user-added plus a few **fictional sample listings**. No live places provider. A policy only shows as verified when the user marks it verified themselves.
 - Events and posts are local. There are no other users.
 - Box checkout is disabled ("Coming soon"); no prices exist.

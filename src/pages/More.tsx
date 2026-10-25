@@ -8,6 +8,7 @@ const ITEMS = [
   { to: '/events', icon: 'calendar', label: 'Events', hint: 'Walk clubs, playdates, birthdays' },
   { to: '/boxes', icon: 'gift', label: 'Mystery boxes', hint: 'Themed box plans per pet' },
   { to: '/shop', icon: 'bag', label: 'Shop', hint: 'Partner brands' },
+  { to: '/spending', icon: 'bag', label: 'Spending', hint: 'Monthly totals, by category and pet' },
   { to: '/care', icon: 'syringe', label: 'Care schedule', hint: 'Everything due across pets' },
   { to: '/notifications', icon: 'bell', label: 'Notifications', hint: 'Reminders and upcoming plans' },
   { to: '/account', icon: 'user', label: 'Account', hint: 'Household, export, import, delete' },

@@ -19,7 +19,11 @@ export interface ChoreOccurrence extends AuditFields { householdId: ID; title: s
 
 export type Species = 'dog' | 'cat' | 'other';
 
-export interface Household extends AuditFields { name: string }
+export interface Household extends AuditFields {
+  name: string;
+  /** First names of people in the household, used for "fed by". Names only, no accounts yet. */
+  members?: string[];
+}
 
 /** Full pet record used by the app. Extends the original PetProfile contract. */
 export interface Pet extends PetProfile {
@@ -32,6 +36,8 @@ export interface Pet extends PetProfile {
   microchip?: string;
   vetName?: string;
   vetPhone?: string;
+  /** Daily calories from the vet. Only ever entered by the user. */
+  dailyCalorieTarget?: number;
   isSample?: boolean;
 }
 
@@ -213,10 +219,67 @@ export interface PetFoodItem extends AuditFields {
   /** Days before running out to start nudging. Defaults to 7. */
   reorderLeadDays?: number;
   notes?: string;
+  /** Calories in one treat piece, from the package. User-entered only. */
+  kcalPerPiece?: number;
   whereBought?: string;
   /** Purchase history, oldest first. The last entry is the current package. */
   purchases: FoodPurchase[];
   active: boolean;
+  isSample?: boolean;
+}
+
+/** One checked-off feeding. Logs are per calendar day, so the checklist resets each day. */
+export interface FeedingLog extends AuditFields {
+  householdId: ID;
+  petId: ID;
+  foodId?: ID;
+  /** YYYY-MM-DD the feeding belongs to. */
+  day: string;
+  /** 0-based slot: Breakfast, Lunch, Dinner, Late depending on feedings per day. */
+  slot: number;
+  /** ISO time the feeding was checked off. */
+  fedAt: string;
+  /** Household member name, optional. */
+  fedBy?: string;
+  isSample?: boolean;
+}
+
+/** Treat pieces given on one day for one treat. */
+export interface TreatLog extends AuditFields {
+  householdId: ID;
+  petId: ID;
+  foodId: ID;
+  day: string;
+  count: number;
+  isSample?: boolean;
+}
+
+export type SwitchPlanLength = 7 | 10;
+
+/** Gradual change from one food to another. */
+export interface FoodSwitchPlan extends AuditFields {
+  householdId: ID;
+  petId: ID;
+  oldFoodId: ID;
+  newFoodId: ID;
+  days: SwitchPlanLength;
+  /** YYYY-MM-DD of day 1. */
+  startDate: string;
+  status: 'active' | 'done' | 'stopped';
+  isSample?: boolean;
+}
+
+export type ExpenseCategory = 'food' | 'treats' | 'toys' | 'meds' | 'vet' | 'grooming' | 'boarding' | 'supplies' | 'other';
+
+/** A manual pet expense. Food bag prices come from FoodPurchase.price instead. */
+export interface Expense extends AuditFields {
+  householdId: ID;
+  category: ExpenseCategory;
+  amount: number;
+  /** YYYY-MM-DD */
+  date: string;
+  petId?: ID;
+  note?: string;
   isSample?: boolean;
 }
 
@@ -249,5 +312,9 @@ export interface ExportBundle {
   boxPlans: BoxPlan[];
   /** Added later; older exports may not have it. */
   petFood?: PetFoodItem[];
+  feedingLogs?: FeedingLog[];
+  treatLogs?: TreatLog[];
+  switchPlans?: FoodSwitchPlan[];
+  expenses?: Expense[];
   dismissedNotifications: ID[];
 }

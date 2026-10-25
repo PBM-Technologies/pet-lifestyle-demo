@@ -3,7 +3,7 @@ import { addDays, today } from '../lib/dates';
 import { buildPackingList } from '../lib/packing';
 import { restrictionsFromAllergies } from '../lib/boxes';
 import type { Db } from './db';
-import { ensureSeeded, loadSamplePets } from './db';
+import { allRepos, ensureSeeded, loadSamplePets } from './db';
 import { SAMPLE_PET_IDS, samplePets } from './samples';
 
 /**
@@ -19,11 +19,14 @@ export async function seedDemo(db: Db, base: string = today()): Promise<void> {
   if ((await db.households.list()).length) return;
   await ensureSeeded(db);
   const now = new Date().toISOString();
-  const household: Household = { id: HOUSEHOLD_ID, name: 'The Parkers', createdAt: now, updatedAt: now };
+  // Household member names exist only in the demo; real households start empty.
+  const household: Household = { id: HOUSEHOLD_ID, name: 'The Parkers', members: ['Sarah', 'Alex'], createdAt: now, updatedAt: now };
   await db.households.upsert(household);
   await loadSamplePets(db, HOUSEHOLD_ID);
   const { pets } = samplePets(HOUSEHOLD_ID, base);
   const bailey = pets.find((p) => p.id === SAMPLE_PET_IDS.bailey)!;
+  // Breakfast was checked off by a household member in the demo.
+  for (const l of await db.feedingLogs.list((x) => x.petId === bailey.id && !!x.isSample)) await db.feedingLogs.upsert({ ...l, fedBy: 'Sarah' });
 
   const saved = (placeId: string, extra: Partial<SavedPlace>): SavedPlace => ({
     id: 'demo-saved-' + placeId, householdId: HOUSEHOLD_ID, placeId, favorite: true, createdAt: now, updatedAt: now, ...extra,
@@ -84,8 +87,7 @@ export async function seedDemo(db: Db, base: string = today()): Promise<void> {
 
 /** Wipes demo storage and loads the demo again. */
 export async function resetDemo(db: Db): Promise<void> {
-  const repos = [db.households, db.pets, db.careEvents, db.documents, db.places, db.savedPlaces, db.trips, db.events, db.posts, db.boxPlans, db.petFood, db.dismissed];
-  for (const r of repos) await r.replaceAll([]);
+  for (const r of allRepos(db)) await r.replaceAll([]);
   db.store.removeItem('meta:seeded');
   await seedDemo(db);
 }
